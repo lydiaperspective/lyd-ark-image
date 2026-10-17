@@ -243,4 +243,4 @@ RUN rm -rf \
 
 # Runtime state is recreated at boot; keep builder-injected mounts intact.
 COPY clean-runtime.py /usr/lib/ark/clean-runtime.py
-RUN python /usr/lib/ark/clean-runtime.py && bootc container lint
+RUN python /usr/lib/ark/clean-runtime.py

@@ -12,6 +12,10 @@ on:
         default: true
         type: boolean
 
+concurrency:
+  group: ark-payload-release
+  cancel-in-progress: false
+
 env:
   CACHE_KEY_PREFIX: archlinux-digest-v2
 
@@ -276,6 +280,8 @@ jobs:
       - name: Build custom ark image with bootupd
         run: |
           sudo podman build -v $(pwd)/.github/pacman-cache:/var/cache/pacman/pkg --build-arg CARRIER_SHA=${{ needs.check-digest.outputs.carrier-sha }} --build-arg CARRIER_URL="${{ needs.check-digest.outputs.carrier-url }}" --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} --build-arg VARIANT=${{ matrix.variant }} -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} -f .github/Containerfile .github/
+          # Inspect the finished artifact without the runner-owned build cache mount.
+          sudo podman run --rm --entrypoint /usr/bin/bootc ghcr.io/${{ github.repository }}:${{ matrix.variant }} container lint
           sudo chown -R $USER:$USER .github/pacman-cache/
       - name: Log in to the Container registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
