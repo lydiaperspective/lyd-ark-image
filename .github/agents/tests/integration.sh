@@ -7,6 +7,8 @@ set -euo pipefail
 for path in /agents /orundum; do
   [[ ! -e $path ]] || { echo "Fixture path already exists: $path" >&2; exit 1; }
 done
+# Fixture administration is root, not a request on behalf of the sudo caller.
+unset SUDO_UID SUDO_GID SUDO_USER PKEXEC_UID
 SOURCE_DIR=$(cd "$(dirname "$0")/.." && pwd)
 mkdir -p /agents /orundum /run/ark-agents /usr/libexec/ark /fixture-root
 install -m755 "$SOURCE_DIR/storage.py" /usr/libexec/ark/agents-storage
