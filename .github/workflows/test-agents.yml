@@ -1,0 +1,22 @@
+name: Validate agent environment
+on:
+  workflow_call:
+  pull_request:
+    paths: ['.github/agents/**', '.github/tests/**', '.github/workflows/test-agents.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install validation dependencies
+        run: sudo apt-get update && sudo apt-get install -y btrfs-progs rsync acl
+      - name: Test release inputs and user state
+        run: |
+          python3 -m unittest discover -s .github/tests -v
+          python3 -m unittest discover -s .github/agents/tests -v
+      - name: Test Btrfs provisioning and recovery
+        run: |
+          sudo env ARK_AGENTS_DISPOSABLE_TEST=1 bash .github/agents/tests/integration.sh

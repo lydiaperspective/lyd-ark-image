@@ -1,0 +1,16 @@
+FROM docker.io/archlinux:latest
+RUN pacman -Syu --noconfirm base-devel git openssh curl wget jq ripgrep fd rsync \
+        python python-pip uv nodejs npm rust go cmake ninja chromium sudo && \
+    useradd -m -u 1000 -s /bin/bash agent && \
+    printf 'agent ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/agent && \
+    chmod 0440 /etc/sudoers.d/agent && \
+    printf 'export NPM_CONFIG_PREFIX="$HOME/.local/share/npm"\nexport PATH="$HOME/.local/bin:$HOME/.local/share/npm/bin:$PATH"\n' > /etc/profile.d/ark-agent.sh && \
+    pacman -Scc --noconfirm
+ENV HOME=/home/agent
+ENV XDG_CONFIG_HOME=/home/agent/.config
+ENV XDG_CACHE_HOME=/home/agent/.cache
+ENV PATH=/home/agent/.local/bin:/home/agent/.local/share/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/bin
+ENV NPM_CONFIG_PREFIX=/home/agent/.local/share/npm
+USER agent
+WORKDIR /home/agent/Work
+CMD ["sleep", "infinity"]

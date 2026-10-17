@@ -20,7 +20,7 @@ RUN set -e; \
         flatpak gnome-initial-setup \
         webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
         util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
-        btrfs-progs podman composefs ibus iso-codes shadow sudo git nano zsh fish; \
+        btrfs-progs podman composefs ibus iso-codes shadow sudo git nano zsh fish python rsync acl libnotify slirp4netns passt fuse-overlayfs catatonit; \
     sed -i 's/^#\(.*UTF-8.*\)/\1/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime; \
@@ -32,7 +32,6 @@ RUN set -e; \
 RUN systemctl enable gdm NetworkManager && \
     systemctl mask systemd-firstboot.service && \
     mkdir -p /etc/ostree && \
-    printf "[sysroot]\ncomposefs=false\n" > /etc/ostree/prepare-root.conf && \
     mkdir -p /sysroot /sysroot/ostree /.snapshots && \
     ln -sfn sysroot/ostree /ostree && \
     glib-compile-schemas /usr/share/glib-2.0/schemas/
@@ -56,8 +55,7 @@ RUN chmod +x /usr/libexec/ark/bls-sync.sh && \
 
 # Layer 6: Orundum (container storage subvolume)
 COPY ark-orundum.conf /usr/lib/tmpfiles.d/ark-orundum.conf
-RUN mkdir -p /orundum /etc/skel/.local/share && \
-    ln -sfn /orundum/containers /etc/skel/.local/share/containers
+RUN mkdir -p /orundum /etc/skel/.local/share
 
 # Layer 6b: Shared writable directories for all users
 COPY ark-share.conf /usr/lib/tmpfiles.d/ark-share.conf
@@ -78,6 +76,18 @@ RUN chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam && \
     { grep -q 'pam_exec.so.*ark-bindmounts-pam' /etc/pam.d/system-login 2>/dev/null || \
       echo 'session optional pam_exec.so /usr/lib/ark/ark-bindmounts-pam' >> /etc/pam.d/system-login; }
 
+# Persistent agent workspaces, provisioning, and desktop entry points.
+COPY agents/storage.py /usr/libexec/ark/agents-storage
+COPY agents/cli.py /usr/bin/ark-agent
+COPY agents/ark-agents-storage.service /usr/lib/systemd/system/ark-agents-storage.service
+COPY agents/ark-agents.policy /usr/share/polkit-1/actions/org.arklinux.agents.policy
+COPY agents/ark-agent.desktop /usr/share/applications/org.arklinux.Agent.desktop
+COPY agents/ark-agents-setup.desktop /etc/xdg/autostart/org.arklinux.AgentSetup.desktop
+COPY agents/skills /usr/share/agents/skills
+RUN mkdir -p /agents && \
+    chmod 0755 /usr/libexec/ark/agents-storage /usr/bin/ark-agent && \
+    systemctl enable ark-agents-storage.service
+
 # Layer 7: Hostname sync
 COPY ark-hostname-sync.sh /usr/lib/ark/ark-hostname-sync
 COPY ark-hostname-sync.service /usr/lib/systemd/system/ark-hostname-sync.service
@@ -86,9 +96,13 @@ RUN chmod +x /usr/lib/ark/ark-hostname-sync && \
     systemctl enable ark-hostname-sync.path
 
 # Layer 8: carrier + PM symlinks + ark-home
-RUN curl -sL "https://github.com/zamkara/carrier-pkg/releases/latest/download/carrier" \
+ARG CARRIER_SHA=unknown
+ARG CARRIER_URL=https://github.com/zamkara/carrier-pkg/releases/latest/download/carrier
+RUN echo "Carrier release: $CARRIER_SHA" && \
+    curl -fSL --retry 3 --connect-timeout 15 --max-time 180 "$CARRIER_URL" \
     -o /usr/lib/ark/carrier && \
-    chmod +x /usr/lib/ark/carrier
+    chmod +x /usr/lib/ark/carrier && \
+    /usr/lib/ark/carrier --version
 COPY ark-home.conf /usr/lib/tmpfiles.d/ark-home.conf
 RUN ln -sf /usr/lib/ark/carrier /usr/local/bin/pacman && \
     ln -sf /usr/lib/ark/carrier /usr/local/bin/apt-get && \
@@ -104,7 +118,6 @@ RUN ln -sf /usr/lib/ark/carrier /usr/local/bin/pacman && \
 
 # Layer 9: Alga wrapper + desktop entry + D-Bus + update timer
 COPY alga-wrapper.sh /usr/lib/ark/alga-wrapper
-COPY com.zamkara.alga.desktop /usr/share/applications/com.zamkara.alga.desktop
 COPY com.zamkara.alga.service /usr/share/dbus-1/services/com.zamkara.alga.service
 COPY alga-update.service /usr/lib/systemd/system/alga-update.service
 COPY alga-update.timer /usr/lib/systemd/system/alga-update.timer
@@ -117,10 +130,11 @@ COPY ark-folder-icons.desktop /etc/xdg/autostart/ark-folder-icons.desktop
 RUN chmod +x /usr/libexec/ark/ark-folder-icons.sh
 
 # Layer 10: /usr/local → /var/usrlocal symlink
-RUN rm -rf /usr/local && ln -sf /var/usrlocal /usr/local
+RUN rm -rf /usr/local && ln -sf ../var/usrlocal /usr/local
 
 # Layer 11: Kernel + AUR packages + DKMS (variant-specific)
 ARG AUR_SHA=unknown
+COPY install-packages.sh /usr/lib/ark/install-packages.sh
 RUN --mount=type=bind,source=aur-packages,target=/tmp/aur-packages \
     set -e; \
     echo "AUR SHA: ${AUR_SHA}"; \
@@ -137,19 +151,17 @@ RUN --mount=type=bind,source=aur-packages,target=/tmp/aur-packages \
         pacman-key --populate cachyos; \
         sed -i '/SigLevel = Never/d' /etc/pacman.conf; \
         pacman -Sy --noconfirm; \
-        pacman -S --noconfirm $CACHY_KERNEL ${CACHY_KERNEL}-headers; \
+        pacman -Syu --noconfirm $CACHY_KERNEL ${CACHY_KERNEL}-headers; \
     else \
         if [[ "$VARIANT" == *"-zen"* ]]; then KERNEL="linux-zen"; fi; \
         if [[ "$VARIANT" == *"-lts"* ]]; then KERNEL="linux-lts"; fi; \
         if [[ "$VARIANT" == *"-hardened"* ]]; then KERNEL="linux-hardened"; fi; \
-        pacman -S --noconfirm $KERNEL; \
-        pacman -U --noconfirm /tmp/aur-packages/${KERNEL}-headers-*.pkg.tar.zst 2>/dev/null || true; \
+        pacman -S --noconfirm $KERNEL ${KERNEL}-headers; \
     fi; \
-    _pkgs=$(ls /tmp/aur-packages/*.pkg.tar.zst 2>/dev/null | grep -vE '/(linux|linux-zen|linux-lts|linux-hardened)-headers-[0-9]' | tr '\n' ' '); \
-    [ -n "$_pkgs" ] && pacman -U --noconfirm --overwrite '*' $_pkgs || true; \
+    bash /usr/lib/ark/install-packages.sh; \
     locale-gen; \
     KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
-    dkms autoinstall -k "$KVER" 2>/dev/null || true; \
+    dkms autoinstall -k "$KVER"; \
     pacman -Scc --noconfirm; \
     rm -f /var/usrlocal/bin/pacman; \
     systemd-sysusers; \
@@ -168,24 +180,12 @@ COPY 80-nvidia-pm.rules /usr/lib/udev/rules.d/80-nvidia-pm.rules
 # Layer 12: Nvidia (variant-specific, must be before mkinitcpio)
 RUN set -e; \
     if [[ "$VARIANT" == *"-nvidia"* ]]; then \
-        pacman -S --noconfirm steam lib32-nvidia-utils nvtop; \
-        if [[ "$VARIANT" == *"-apex"* ]]; then \
-            CACHY_KERNEL="linux-cachyos"; \
-            if [[ "$VARIANT" == *"-bore"* ]]; then CACHY_KERNEL="linux-cachyos-bore"; fi; \
-            if [[ "$VARIANT" == *"-lts"* ]]; then CACHY_KERNEL="linux-cachyos-lts"; fi; \
-            if [[ "$VARIANT" == *"-hardened"* ]]; then CACHY_KERNEL="linux-cachyos-hardened"; fi; \
-            pacman -S --noconfirm ${CACHY_KERNEL}-nvidia-open nvidia-utils nvidia-settings; \
-        else \
-            KERNEL="linux"; \
-            if [[ "$VARIANT" == *"-zen"* ]]; then KERNEL="linux-zen"; fi; \
-            if [[ "$VARIANT" == *"-lts"* ]]; then KERNEL="linux-lts"; fi; \
-            if [[ "$VARIANT" == *"-hardened"* ]]; then KERNEL="linux-hardened"; fi; \
-            if [ "$KERNEL" = "linux" ]; then \
-                pacman -S --noconfirm nvidia-open nvidia-utils nvidia-settings; \
-            else \
-                pacman -S --noconfirm nvidia-open-dkms ${KERNEL}-headers dkms nvidia-utils nvidia-settings; \
-            fi; \
-        fi; \
+        # Use one Arch driver stack for every kernel. DKMS avoids the version
+        # pin in CachyOS prebuilt modules conflicting with Arch multilib packages.
+        pacman -S --noconfirm steam nvtop extra/nvidia-open-dkms \
+            extra/nvidia-utils extra/nvidia-settings multilib/lib32-nvidia-utils dkms; \
+        KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
+        dkms autoinstall -k "$KVER"; \
         pacman -Scc --noconfirm; \
     fi
 
@@ -199,7 +199,7 @@ RUN set -e; \
         if [[ "$VARIANT" != *"-apex"* ]]; then \
             printf '\n[g14]\nSigLevel = Never\nServer = https://arch.asus-linux.org\n' >> /etc/pacman.conf; \
         fi; \
-        pacman -Sy --noconfirm asusctl rog-control-center; \
+        pacman -Syu --noconfirm asusctl rog-control-center; \
         pacman -Scc --noconfirm; \
     fi
 
@@ -225,7 +225,6 @@ RUN rm -rf \
         /usr/lib/libalpm.so* \
         /usr/include/alpm* \
         /usr/lib/pkgconfig/libalpm.pc \
-        /usr/lib/sysusers.d/alpm.conf \
         /usr/lib/systemd/system/sockets.target.wants/dirmngr@etc-pacman.d-gnupg.socket \
         /usr/lib/systemd/system/sockets.target.wants/gpg-agent*@etc-pacman.d-gnupg.socket \
         /usr/lib/systemd/system/sockets.target.wants/keyboxd@etc-pacman.d-gnupg.socket \
@@ -241,3 +240,7 @@ RUN rm -rf \
         /etc/pacman.d/ \
         /var/lib/pacman/ && \
     rm -f /usr/share/applications/{bssh,bvnc,avahi-discover,qv4l2,qvidcap,stoken-gui,stoken-gui-small,org.gnome.Extensions,org.gnome.TextEditor,lstopo,hwloc-ls,org.gnome.Logs,ibus,ibus-setup,ibus-wayland,scrcpy,scrcpy-console,veracrypt,timeshift,timeshift-gtk,org.freedesktop.MalcontentControl,nvtop}.desktop 2>/dev/null || true
+
+# Runtime state is recreated at boot; keep builder-injected mounts intact.
+COPY clean-runtime.py /usr/lib/ark/clean-runtime.py
+RUN python /usr/lib/ark/clean-runtime.py && bootc container lint

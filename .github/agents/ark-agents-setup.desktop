@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Ark Agent Workspace
+Exec=ark-agent setup --notify
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

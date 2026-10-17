@@ -17,3 +17,7 @@ commit.sh
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Python validation artifacts
+__pycache__/
+*.py[cod]

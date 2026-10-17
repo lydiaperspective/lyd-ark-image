@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare persistent Ark agent storage
+After=local-fs.target
+Before=display-manager.service
+ConditionPathExists=/agents
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/ark/agents-storage init-storage
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

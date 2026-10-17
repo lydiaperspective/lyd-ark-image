@@ -13,7 +13,7 @@ on:
         type: boolean
 
 env:
-  CACHE_KEY_PREFIX: archlinux-digest
+  CACHE_KEY_PREFIX: archlinux-digest-v2
 
 jobs:
   check-digest:
@@ -26,89 +26,68 @@ jobs:
       reason: ${{ steps.decide.outputs.reason }}
       digest: ${{ steps.digest.outputs.value }}
       aur-sha: ${{ steps.aur.outputs.sha }}
+      aur-release-id: ${{ steps.aur.outputs.release-id }}
       alga-sha: ${{ steps.alga.outputs.sha }}
+      alga-url: ${{ steps.alga.outputs.url }}
       backgrounds-sha: ${{ steps.backgrounds.outputs.sha }}
-      sf-sha: ${{ steps.sf.outputs.sha }}
+      backgrounds-url: ${{ steps.backgrounds.outputs.url }}
+      carrier-sha: ${{ steps.carrier.outputs.sha }}
+      carrier-url: ${{ steps.carrier.outputs.url }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Get current archlinux:latest digest
         id: digest
         run: |
-          DIGEST=$(curl -sS \
-            -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-            "https://registry.hub.docker.com/v2/library/archlinux/manifests/latest" 2>/dev/null | \
-            jq -r '.config.digest // empty')
-          echo "value=${DIGEST:-unknown}" >> $GITHUB_OUTPUT
-          echo "Current archlinux digest: ${DIGEST:-unknown}"
+          TOKEN=$(curl -fsS 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/archlinux:pull' | jq -er '.token')
+          DIGEST=$(curl -fsSI \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+            https://registry-1.docker.io/v2/library/archlinux/manifests/latest | \
+            awk 'tolower($1) == "docker-content-digest:" {gsub("\r", "", $2); print $2}')
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Missing Arch image digest' >&2; exit 1; }
+          echo "value=$DIGEST" >> "$GITHUB_OUTPUT"
 
-      - name: Check ark-aur latest commit
+      - name: Check published ark-aur release
         id: aur
-        run: |
-          SHA=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/zamkara/ark-aur/commits/main 2>/dev/null | \
-            jq -r '.sha // empty')
-          echo "sha=${SHA:-unknown}" >> $GITHUB_OUTPUT
-          if [ -n "$SHA" ]; then
-            STATUS=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/zamkara/ark-aur/commits/$SHA/status 2>/dev/null | \
-              jq -r '.state // empty')
-            echo "ci=${STATUS:-unknown}" >> $GITHUB_OUTPUT
-          else
-            echo "ci=unknown" >> $GITHUB_OUTPUT
-          fi
-          echo "ark-aur: sha=$SHA ci=$STATUS"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/download-aur-release.py --kind identity
 
-      - name: Check alga latest commit
+      - name: Check published Carrier release
+        id: carrier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DATA=$(gh api repos/zamkara/carrier-pkg/releases/latest)
+          ID=$(printf '%s' "$DATA" | jq -er '.id')
+          URL=$(printf '%s' "$DATA" | jq -er '.assets[] | select(.name == "carrier") | .browser_download_url')
+          echo "sha=$ID" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Check published alga release
         id: alga
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          SHA=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/zamkara/alga/commits/main 2>/dev/null | \
-            jq -r '.sha // empty')
-          echo "sha=${SHA:-unknown}" >> $GITHUB_OUTPUT
-          if [ -n "$SHA" ]; then
-            STATUS=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/zamkara/alga/commits/$SHA/status 2>/dev/null | \
-              jq -r '.state // empty')
-            echo "ci=${STATUS:-unknown}" >> $GITHUB_OUTPUT
-          else
-            echo "ci=unknown" >> $GITHUB_OUTPUT
-          fi
-          echo "alga: sha=$SHA ci=$STATUS"
+          DATA=$(gh api repos/zamkara/alga/releases/latest)
+          ID=$(printf '%s' "$DATA" | jq -er '.id')
+          URL=$(printf '%s' "$DATA" | jq -er '[.assets[] | select(.name | endswith(".pkg.tar.zst")) | select(.name | contains("-debug-") | not)] | if length == 1 then .[0].browser_download_url else error("Expected one release package") end')
+          echo "sha=$ID" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "ci=success" >> "$GITHUB_OUTPUT"
 
-      - name: Check ark-backgrounds latest commit
+      - name: Check published ark-backgrounds release
         id: backgrounds
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          SHA=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/zamkara/ark-backgrounds/commits/main 2>/dev/null | \
-            jq -r '.sha // empty')
-          echo "sha=${SHA:-unknown}" >> $GITHUB_OUTPUT
-          if [ -n "$SHA" ]; then
-            STATUS=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/zamkara/ark-backgrounds/commits/$SHA/status 2>/dev/null | \
-              jq -r '.state // empty')
-            echo "ci=${STATUS:-unknown}" >> $GITHUB_OUTPUT
-          else
-            echo "ci=unknown" >> $GITHUB_OUTPUT
-          fi
-          echo "ark-backgrounds: sha=$SHA ci=$STATUS"
-
-      - name: Check sf-builder latest commit
-        id: sf
-        run: |
-          SHA=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/zamkara/sf-builder/commits/main 2>/dev/null | \
-            jq -r '.sha // empty')
-          echo "sha=${SHA:-unknown}" >> $GITHUB_OUTPUT
-          if [ -n "$SHA" ]; then
-            STATUS=$(curl -sS -H "Accept: application/vnd.github.v3+json" \
-              https://api.github.com/repos/zamkara/sf-builder/commits/$SHA/status 2>/dev/null | \
-              jq -r '.state // empty')
-            echo "ci=${STATUS:-unknown}" >> $GITHUB_OUTPUT
-          else
-            echo "ci=unknown" >> $GITHUB_OUTPUT
-          fi
-          echo "sf-builder: sha=$SHA ci=$STATUS"
+          DATA=$(gh api repos/zamkara/ark-backgrounds/releases/latest)
+          ID=$(printf '%s' "$DATA" | jq -er '.id')
+          URL=$(printf '%s' "$DATA" | jq -er '[.assets[] | select(.name | endswith(".pkg.tar.zst")) | select(.name | contains("-debug-") | not)] | if length == 1 then .[0].browser_download_url else error("Expected one release package") end')
+          echo "sha=$ID" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "ci=success" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached digest
         id: cache-restore
@@ -138,24 +117,24 @@ jobs:
           CURRENT="${{ steps.digest.outputs.value }}"
           AUR_CURRENT="${{ steps.aur.outputs.sha }}"
           AUR_CI="${{ steps.aur.outputs.ci }}"
+          CARRIER_CURRENT="${{ steps.carrier.outputs.sha }}"
           ALGA_CURRENT="${{ steps.alga.outputs.sha }}"
           ALGA_CI="${{ steps.alga.outputs.ci }}"
           BACKGROUNDS_CURRENT="${{ steps.backgrounds.outputs.sha }}"
           BACKGROUNDS_CI="${{ steps.backgrounds.outputs.ci }}"
-          SF_CURRENT="${{ steps.sf.outputs.sha }}"
-          SF_CI="${{ steps.sf.outputs.ci }}"
 
           CACHED=""
           AUR_CACHED=""
           ALGA_CACHED=""
           BACKGROUNDS_CACHED=""
+          CARRIER_CACHED=""
           CACHED_TS=""
           if [ -f digest-cache.txt ]; then
             CACHED=$(sed -n '1p' digest-cache.txt)
             AUR_CACHED=$(sed -n '2p' digest-cache.txt)
             ALGA_CACHED=$(sed -n '3p' digest-cache.txt)
             BACKGROUNDS_CACHED=$(sed -n '4p' digest-cache.txt)
-            SF_CACHED=$(sed -n '5p' digest-cache.txt)
+            CARRIER_CACHED=$(sed -n '5p' digest-cache.txt)
             CACHED_TS=$(sed -n '6p' digest-cache.txt)
           fi
 
@@ -178,9 +157,9 @@ jobs:
           elif [ "$BACKGROUNDS_CURRENT" != "$BACKGROUNDS_CACHED" ] && [ "$BACKGROUNDS_CI" = "success" ]; then
             needs_build="true"
             reason="update-backgrounds"
-          elif [ "$SF_CURRENT" != "$SF_CACHED" ] && [ "$SF_CI" = "success" ]; then
+          elif [ "$CARRIER_CURRENT" != "$CARRIER_CACHED" ]; then
             needs_build="true"
-            reason="update-sf"
+            reason="update-carrier"
           elif [ -n "$CACHED_TS" ] && [ $((NOW - CACHED_TS)) -gt $((7 * 86400)) ]; then
             needs_build="true"
             reason="weekly-fallback"
@@ -190,7 +169,6 @@ jobs:
           echo "ark-aur: cached=$AUR_CACHED current=$AUR_CURRENT ci=$AUR_CI"
           echo "alga: cached=$ALGA_CACHED current=$ALGA_CURRENT ci=$ALGA_CI"
           echo "ark-backgrounds: cached=$BACKGROUNDS_CACHED current=$BACKGROUNDS_CURRENT ci=$BACKGROUNDS_CI"
-          echo "sf-builder: cached=$SF_CACHED current=$SF_CURRENT ci=$SF_CI"
 
           echo "needs-build=$needs_build" >> $GITHUB_OUTPUT
           echo "reason=$reason" >> $GITHUB_OUTPUT
@@ -206,8 +184,35 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-payload:
+  validate-agent-environment:
     needs: check-digest
+    if: needs.check-digest.outputs.needs-build == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test-agents.yml
+
+  build-agent-environment:
+    needs: [check-digest, validate-agent-environment]
+    if: needs.check-digest.outputs.needs-build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build agent development environment
+        run: |
+          sudo apt-get update && sudo apt-get install -y podman
+          sudo podman build -t ghcr.io/${{ github.repository }}:agents -f .github/agents/Containerfile .github/agents
+      - name: Publish agent development environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | sudo podman login ghcr.io -u '${{ github.actor }}' --password-stdin
+          sudo podman push ghcr.io/${{ github.repository }}:agents
+
+  build-payload:
+    needs: [check-digest, build-agent-environment]
     if: needs.check-digest.outputs.needs-build == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -232,97 +237,32 @@ jobs:
       - name: Set up dependencies
         run: sudo apt-get update && sudo apt-get install -y podman wget
       - name: Download AUR packages
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p .github/aur-packages
-          cd .github/aur-packages
-          python3 << 'EOF' | wget -qi -
-          import urllib.request, json
-          req = urllib.request.Request("https://api.github.com/repos/zamkara/ark-aur/releases/latest", headers={"User-Agent": "Antigravity"})
-          data = json.loads(urllib.request.urlopen(req).read().decode())
-          for a in data.get("assets", []):
-              if a["name"].endswith(".pkg.tar.zst") or a["name"].endswith(".pkg.tar.xz"):
-                  print(a["browser_download_url"])
-          EOF
-          cd ../..
+          python3 .github/download-aur-release.py --kind packages \
+            --release-id '${{ needs.check-digest.outputs.aur-release-id }}' \
+            --destination .github/aur-packages
       - name: Download Alga Package
-        run: |
-          cd .github/aur-packages
-          python3 << 'EOF' | wget -qi -
-          import urllib.request, json
-          req = urllib.request.Request(
-              "https://api.github.com/repos/zamkara/alga/releases/latest",
-              headers={"User-Agent": "Antigravity"}
-          )
-          data = json.loads(urllib.request.urlopen(req).read().decode())
-          for a in data.get("assets", []):
-              if a["name"].endswith(".pkg.tar.zst") and "debug" not in a["name"]:
-                  print(a["browser_download_url"])
-                  break
-          EOF
-          python3 - <<'PYEOF'
-          import os, re
-          pkgs = [f for f in os.listdir('.') if f.endswith('.pkg.tar.zst')]
-          best = {}
-          for f in pkgs:
-              m = re.match(r'^(.+)-([^-]+)-([^-]+)-([^-]+)\.pkg\.tar\.zst$', f)
-              if not m:
-                  continue
-              name, ver, rel, arch = m.group(1), m.group(2), m.group(3), m.group(4)
-              key = name
-              cur_ver = best.get(key)
-              if cur_ver is None or (int(rel) > int(re.match(r'^(.+)-([^-]+)-([^-]+)-([^-]+)\.pkg\.tar\.zst$', cur_ver).group(3))):
-                  best[key] = f
-          keep = set(best.values())
-          for f in pkgs:
-              if f not in keep:
-                  print(f"Removing older duplicate: {f}")
-                  os.remove(f)
-          print("Final packages:", sorted(keep))
-          PYEOF
-          echo "Final packages in dir:"
-          ls -lh
-          cd ../..
+        env:
+          PACKAGE_URL: ${{ needs.check-digest.outputs.alga-url }}
+        run: curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$PACKAGE_URL" -o .github/aur-packages/alga.pkg.tar.zst
+
       - name: Download ark-backgrounds
-        run: |
-          cd .github/aur-packages
-          python3 << 'EOF' | wget -qi -
-          import urllib.request, json
-          req = urllib.request.Request(
-              "https://api.github.com/repos/zamkara/ark-backgrounds/releases/latest",
-              headers={"User-Agent": "Antigravity"}
-          )
-          data = json.loads(urllib.request.urlopen(req).read().decode())
-          for a in data.get("assets", []):
-              if a["name"].endswith(".pkg.tar.zst") and "debug" not in a["name"]:
-                  print(a["browser_download_url"])
-                  break
-          EOF
-          cd ../..
-      - name: Download sf-builder Package
-        run: |
-          cd .github/aur-packages
-          python3 << 'EOF' | wget -qi -
-          import urllib.request, json
-          req = urllib.request.Request(
-              "https://api.github.com/repos/zamkara/sf-builder/releases/latest",
-              headers={"User-Agent": "Antigravity"})
-          data = json.loads(urllib.request.urlopen(req).read().decode())
-          for a in data.get("assets", []):
-              if a["name"].endswith(".pkg.tar.zst") and "debug" not in a["name"]:
-                  print(a["browser_download_url"]); break
-          EOF
-          cd ../..
+        env:
+          PACKAGE_URL: ${{ needs.check-digest.outputs.backgrounds-url }}
+        run: curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$PACKAGE_URL" -o .github/aur-packages/backgrounds.pkg.tar.zst
+
       - name: Download Prebuilt Pacman Cache
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          python3 .github/download-aur-release.py --kind cache \
+            --release-id '${{ needs.check-digest.outputs.aur-release-id }}' \
+            --destination pacman-cache-parts
           mkdir -p .github/pacman-cache
-          for part in aa ab ac ad ae af; do
-            wget -q https://github.com/zamkara/ark-aur/releases/download/latest/pacman-cache.tar.gz.part-$part || break
-          done
-          if ls pacman-cache.tar.gz.part-* 1>/dev/null 2>&1; then
-            cat pacman-cache.tar.gz.part-* > pacman-cache.tar.gz
-            tar -xzf pacman-cache.tar.gz -C .github/pacman-cache/
-            rm pacman-cache.tar.gz.part-* pacman-cache.tar.gz
-          fi
+          cat pacman-cache-parts/pacman-cache.tar.gz.part-* | tar -xzf - -C .github/pacman-cache/
+          rm -rf pacman-cache-parts
       - name: Cache Pacman Payload
         uses: actions/cache@v4
         with:
@@ -335,7 +275,7 @@ jobs:
         run: mkdir -p .github/pacman-cache
       - name: Build custom ark image with bootupd
         run: |
-          sudo podman build -v $(pwd)/.github/pacman-cache:/var/cache/pacman/pkg --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} --build-arg VARIANT=${{ matrix.variant }} -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} -f .github/Containerfile .github/
+          sudo podman build -v $(pwd)/.github/pacman-cache:/var/cache/pacman/pkg --build-arg CARRIER_SHA=${{ needs.check-digest.outputs.carrier-sha }} --build-arg CARRIER_URL="${{ needs.check-digest.outputs.carrier-url }}" --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} --build-arg VARIANT=${{ matrix.variant }} -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} -f .github/Containerfile .github/
           sudo chown -R $USER:$USER .github/pacman-cache/
       - name: Log in to the Container registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -367,7 +307,7 @@ jobs:
             echo "${{ needs.check-digest.outputs.aur-sha }}"
             echo "${{ needs.check-digest.outputs.alga-sha }}"
             echo "${{ needs.check-digest.outputs.backgrounds-sha }}"
-            echo "${{ needs.check-digest.outputs.sf-sha }}"
+            echo "${{ needs.check-digest.outputs.carrier-sha }}"
             date +%s
           } > digest-cache.txt
           cat digest-cache.txt
