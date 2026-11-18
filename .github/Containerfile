@@ -179,9 +179,25 @@ COPY 80-nvidia-pm.rules /usr/lib/udev/rules.d/80-nvidia-pm.rules
 
 # Layer 12: Nvidia (variant-specific, must be before mkinitcpio)
 RUN set -e; \
-    if [[ "$VARIANT" == *"-nvidia"* ]]; then \
-        # Use one Arch driver stack for every kernel. DKMS avoids the version
-        # pin in CachyOS prebuilt modules conflicting with Arch multilib packages.
+    if [[ "$VARIANT" == *"-nvidia-580" ]]; then \
+        # The legacy proprietary 580xx stack is sourced only from CachyOS.
+        # Bootstrap its signing key, then install the DKMS driver and matching userspace.
+        printf '\\n[cachyos]\\nSigLevel = Never\\nServer = https://mirror.cachyos.org/repo/$arch/$repo\\n' >> /etc/pacman.conf; \
+        pacman-key --init; \
+        pacman -Sy --noconfirm cachyos-keyring; \
+        pacman-key --populate cachyos; \
+        sed -i '/SigLevel = Never/d' /etc/pacman.conf; \
+        pacman -Sy --noconfirm; \
+        pacman -S --noconfirm steam nvtop dkms \
+            cachyos/nvidia-580xx-dkms cachyos/nvidia-580xx-utils \
+            cachyos/nvidia-580xx-settings cachyos/lib32-nvidia-580xx-utils; \
+        KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
+        dkms autoinstall -k "$KVER"; \
+        # Do not leave CachyOS enabled in the installed system.
+        sed -i '/^\\[cachyos\\]/,/^$/d' /etc/pacman.conf; \
+        pacman -Scc --noconfirm; \
+    elif [[ "$VARIANT" == *"-nvidia"* ]]; then \
+        # Existing NVIDIA variants continue to use Arch's open DKMS driver.
         pacman -S --noconfirm steam nvtop extra/nvidia-open-dkms \
             extra/nvidia-utils extra/nvidia-settings multilib/lib32-nvidia-utils dkms; \
         KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
