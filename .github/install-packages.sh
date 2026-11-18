@@ -37,5 +37,10 @@ fi
 
 # Stop at installation time rather than producing an incomplete bootable image.
 /usr/bin/pacman -Q plymouth bootc bootupd libselinux alga
+/usr/bin/pacman -Q btrfs-progs snapper snap-pac
+if /usr/bin/pacman -Qq | grep -Eq '^(zfs|zfs-|spl|spl-)'; then
+    echo "Unexpected ZFS/SPL package installed in a Btrfs-only image" >&2
+    exit 1
+fi
 test -f /usr/lib/initcpio/install/plymouth
 test -f /usr/lib/initcpio/hooks/plymouth
