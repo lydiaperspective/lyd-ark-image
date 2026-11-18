@@ -74,7 +74,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          DATA=$(gh api repos/zamkara/alga/releases/latest)
+          DATA=$(gh api repos/lydiaperspective/lyd-agka/releases/latest)
           ID=$(printf '%s' "$DATA" | jq -er '.id')
           URL=$(printf '%s' "$DATA" | jq -er '[.assets[] | select(.name | endswith(".pkg.tar.zst")) | select(.name | contains("-debug-") | not)] | if length == 1 then .[0].browser_download_url else error("Expected one release package") end')
           echo "sha=$ID" >> "$GITHUB_OUTPUT"
@@ -224,8 +224,9 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
-        variant: [ark-nvidia-580]
+        variant: [ark-nvidia-580, ark-zen-nvidia-580, ark-lts-nvidia-580, ark-hardened-nvidia-580, ark-apex-nvidia-580, ark-apex-bore-nvidia-580, ark-apex-lts-nvidia-580, ark-apex-hardened-nvidia-580, ark-zen-asus-nvidia-580]
     steps:
       - uses: actions/checkout@v6
       - name: Free Disk Space
