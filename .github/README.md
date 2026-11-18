@@ -21,7 +21,7 @@ This repository defines the base `Containerfile` used to provision the OSTree de
 
 - `VARIANT`: Specifies kernel and driver combinations (e.g., `ark-zen-nvidia`).
 
-Supported variants: `ark`, `ark-zen`, `ark-lts`, `ark-hardened`, `ark-nvidia`, `ark-zen-nvidia`, `ark-lts-nvidia`, `ark-hardened-nvidia`.
+Supported standard variants: `ark`, `ark-zen`, `ark-lts`, and `ark-hardened`. Existing `*-nvidia` variants use Arch's open NVIDIA DKMS driver. The optional proprietary CachyOS 580xx variants are `ark-nvidia-580`, `ark-zen-nvidia-580`, `ark-lts-nvidia-580`, and `ark-hardened-nvidia-580`. The 580xx images use the proprietary DKMS module and matching userspace packages; CachyOS is removed from the image's enabled repository configuration after installation.
 
 ## Local Build
 
