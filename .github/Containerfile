@@ -182,7 +182,7 @@ RUN set -e; \
     if [[ "$VARIANT" == *"-nvidia-580" ]]; then \
         # The legacy proprietary 580xx stack is sourced only from CachyOS.
         # Bootstrap its signing key, then install the DKMS driver and matching userspace.
-        printf '\\n[cachyos]\\nSigLevel = Never\\nServer = https://mirror.cachyos.org/repo/$arch/$repo\\n' >> /etc/pacman.conf; \
+        printf '\n[cachyos]\nSigLevel = Never\nServer = https://mirror.cachyos.org/repo/$arch/$repo\n' >> /etc/pacman.conf; \
         pacman-key --init; \
         pacman -Sy --noconfirm cachyos-keyring; \
         pacman-key --populate cachyos; \
@@ -194,7 +194,7 @@ RUN set -e; \
         KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
         dkms autoinstall -k "$KVER"; \
         # Do not leave CachyOS enabled in the installed system.
-        sed -i '/^\\[cachyos\\]/,/^$/d' /etc/pacman.conf; \
+        sed -i '/^\[cachyos\]/,/^$/d' /etc/pacman.conf; \
         pacman -Scc --noconfirm; \
     elif [[ "$VARIANT" == *"-nvidia"* ]]; then \
         # Existing NVIDIA variants continue to use Arch's open DKMS driver.
