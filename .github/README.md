@@ -22,7 +22,7 @@ This repository defines the base `Containerfile` used to provision the OSTree de
 
 - `VARIANT`: Specifies kernel and driver combinations (e.g., `ark-zen-nvidia`).
 
-The current GitHub Actions workflow intentionally builds and publishes only `ark-nvidia-580`: the regular Arch `linux` kernel with the proprietary NVIDIA 580xx DKMS driver and matching userspace packages sourced from CachyOS. CachyOS is removed from the installed image's enabled repository configuration after the driver is installed. Other kernel/driver combinations remain represented in the Containerfile but are not built or published by CI while this initial variant is being tested.
+The GitHub Actions workflow builds the proprietary NVIDIA 580xx DKMS driver variants for the standard, Zen, LTS, Hardened, and Apex kernel choices, including the Zen ASUS combination. Matching userspace packages are sourced from CachyOS. CachyOS is removed from the installed image's enabled repository configuration after the driver is installed. Standard open-driver images continue to use the existing upstream variants.
 
 The system filesystem and snapshot stack is Btrfs + Snapper, with `snap-pac` for Pacman transaction snapshots. ZFS/SPL packages are explicitly excluded from the shared ark-aur package release and the build verifies that none are installed. The installer must create the Btrfs subvolume layout and initialize Snapper's `root` configuration on the target filesystem; the image build cannot create Btrfs subvolumes inside its ordinary container build root. The system currently uses systemd-boot, so `grub-btrfs` is not included.
 
