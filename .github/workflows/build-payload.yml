@@ -225,7 +225,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [ark, ark-nvidia, ark-nvidia-580, ark-zen, ark-zen-nvidia, ark-zen-nvidia-580, ark-zen-asus, ark-zen-asus-nvidia, ark-lts, ark-lts-nvidia, ark-lts-nvidia-580, ark-hardened, ark-hardened-nvidia, ark-hardened-nvidia-580, ark-apex, ark-apex-nvidia, ark-apex-bore, ark-apex-bore-nvidia, ark-apex-bore-asus, ark-apex-bore-asus-nvidia, ark-apex-lts, ark-apex-lts-nvidia, ark-apex-hardened, ark-apex-hardened-nvidia]
+        variant: [ark-nvidia-580]
     steps:
       - uses: actions/checkout@v6
       - name: Free Disk Space
@@ -283,18 +283,13 @@ jobs:
           # Inspect the finished artifact without the runner-owned build cache mount.
           sudo podman run --rm --entrypoint /usr/bin/bootc ghcr.io/${{ github.repository }}:${{ matrix.variant }} container lint
           sudo chown -R $USER:$USER .github/pacman-cache/
-      - name: Log in to the Container registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Log in to GitHub Container Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_USER: ${{ github.actor }}
+        run: printf '%s' "$GH_TOKEN" | sudo podman login ghcr.io --username "$GH_USER" --password-stdin
       - name: Push payload image to GHCR
         run: sudo podman push --compression-format zstd:chunked ghcr.io/${{ github.repository }}:${{ matrix.variant }}
-
-      - name: Log in to Quay.io
-        run: echo "${{ secrets.QUAY_PASSWORD }}" | sudo podman login quay.io -u ${{ secrets.QUAY_USERNAME }} --password-stdin
-
-      - name: Push payload image to Quay.io
-        run: |
-          sudo podman tag ghcr.io/${{ github.repository }}:${{ matrix.variant }} quay.io/arklinux/gnome:${{ matrix.variant }}
-          sudo podman push --compression-format zstd:chunked quay.io/arklinux/gnome:${{ matrix.variant }}
 
   update-cache:
     needs: [check-digest, build-payload]
