@@ -31,9 +31,11 @@ meson setup "$BUILD_DIR" "$SOURCE_DIR" \
     --buildtype=release
 meson compile -C "$BUILD_DIR"
 meson install -C "$BUILD_DIR"
+python /tmp/patch-packagekit-bootc.py "$HELPER"
 
 test -s "$BACKEND"
 test -x "$HELPER"
+grep -Fq "Staged Lyd Ark system update (ready to reboot)" "$HELPER"
 
 DISCOVER_VERSION="$(pacman -Q discover | awk '{print $2}')"
 if [[ "$(vercmp "$DISCOVER_VERSION" "6.8.0")" -lt 0 ]]; then
