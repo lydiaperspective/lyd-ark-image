@@ -11,6 +11,13 @@ on:
         description: 'Force build regardless of digest'
         default: true
         type: boolean
+      runner:
+        description: 'Where to run the image builds'
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted
+        default: github-hosted
 
 concurrency:
   group: ark-payload-release
@@ -198,7 +205,7 @@ jobs:
   build-agent-environment:
     needs: [check-digest, validate-agent-environment]
     if: needs.check-digest.outputs.needs-build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
       packages: write
@@ -218,7 +225,7 @@ jobs:
   build-payload:
     needs: [check-digest, build-agent-environment]
     if: needs.check-digest.outputs.needs-build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     permissions:
       contents: write
       packages: write
@@ -230,6 +237,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Free Disk Space
+        if: inputs.runner != 'self-hosted'
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
@@ -240,7 +248,13 @@ jobs:
           docker-images: true
           swap-storage: true
       - name: Set up dependencies
-        run: sudo apt-get update && sudo apt-get install -y podman wget
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner first." >&2; exit 1; }
+            command -v wget >/dev/null || { echo "Install wget on the self-hosted runner first." >&2; exit 1; }
+          else
+            sudo apt-get update && sudo apt-get install -y podman wget
+          fi
       - name: Download AUR packages
         env:
           GH_TOKEN: ${{ github.token }}
@@ -290,17 +304,22 @@ jobs:
         run: mkdir -p .github/pacman-cache
       - name: Build custom ark image with bootupd
         run: |
-          sudo podman build -v $(pwd)/.github/pacman-cache:/var/cache/pacman/pkg --build-arg CARRIER_SHA=${{ needs.check-digest.outputs.carrier-sha }} --build-arg CARRIER_URL="${{ needs.check-digest.outputs.carrier-url }}" --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} --build-arg VARIANT=${{ matrix.variant }} -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} -f .github/Containerfile .github/
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          "${PODMAN[@]}" build -v $(pwd)/.github/pacman-cache:/var/cache/pacman/pkg --build-arg CARRIER_SHA=${{ needs.check-digest.outputs.carrier-sha }} --build-arg CARRIER_URL="${{ needs.check-digest.outputs.carrier-url }}" --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} --build-arg VARIANT=${{ matrix.variant }} -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} -f .github/Containerfile .github/
           # Inspect the finished artifact without the runner-owned build cache mount.
-          sudo podman run --rm --entrypoint /usr/bin/bootc ghcr.io/${{ github.repository }}:${{ matrix.variant }} container lint
-          sudo chown -R $USER:$USER .github/pacman-cache/
+          "${PODMAN[@]}" run --rm --entrypoint /usr/bin/bootc ghcr.io/${{ github.repository }}:${{ matrix.variant }} container lint
+          if [ "${{ inputs.runner }}" != "self-hosted" ]; then sudo chown -R "$USER:$USER" .github/pacman-cache/; fi
       - name: Log in to GitHub Container Registry
         env:
           GH_TOKEN: ${{ github.token }}
           GH_USER: ${{ github.actor }}
-        run: printf '%s' "$GH_TOKEN" | sudo podman login ghcr.io --username "$GH_USER" --password-stdin
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io --username "$GH_USER" --password-stdin
       - name: Push payload image to GHCR
-        run: sudo podman push --compression-format zstd:chunked ghcr.io/${{ github.repository }}:${{ matrix.variant }}
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          "${PODMAN[@]}" push --compression-format zstd:chunked ghcr.io/${{ github.repository }}:${{ matrix.variant }}
 
   update-cache:
     needs: [check-digest, build-payload]
