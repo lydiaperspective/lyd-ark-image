@@ -47,8 +47,14 @@ test -f /usr/lib/initcpio/hooks/plymouth
 
 # Desktop images must retain the bootc-aware Discover integration after the
 # kernel and driver layers are composed. Server images intentionally omit it.
-if [[ -f /usr/lib/packagekit-backend/libpk_backend_bootc.so ]]; then
+if [[ "${VARIANT:-}" == "intel3-server-lts" ]]; then
+    if [[ -e /usr/lib/packagekit-backend/libpk_backend_bootc.so ]]; then
+        echo "Server image unexpectedly contains the desktop PackageKit bootc backend." >&2
+        exit 1
+    fi
+else
     /usr/bin/pacman -Q discover packagekit packagekit-qt6
+    test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
     test -x /usr/share/PackageKit/helpers/bootc/bootcBackend.py
-    grep -Eq '^DefaultBackend=bootc /etc/PackageKit/PackageKit.conf
+    grep -Eq '^DefaultBackend=bootc$' /etc/PackageKit/PackageKit.conf
 fi
