@@ -15,7 +15,7 @@ RUN set -e; \
     pacman -Syu --noconfirm; \
     pacman -S --noconfirm \
         base glibc linux-firmware networkmanager mkinitcpio \
-        plasma-desktop plasma-workspace plasma-nm plasma-pa plasma-integration polkit-kde-agent \
+        plasma-desktop plasma-workspace plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-icons \
         plasma-systemmonitor powerdevil systemsettings sddm konsole dolphin ark okular kate \
         spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
         xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
