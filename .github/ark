@@ -12,20 +12,23 @@ Usage:
   ark feature status [FEATURE]
   ark feature enable FEATURE
   ark feature disable FEATURE
+  ark feature unregister github-runner
   ark steam|tailscale|podman|distrobox|github-runner status|enable|disable
 
 Manageable features:
-  steam       Install or remove Steam as a system Flatpak.
-  tailscale   Enable or disable the Tailscale system service.
-  podman      Enable or disable the rootless Podman API socket.\n  github-runner  Register and run a repository-scoped self-hosted runner.
+  steam          Install or remove Steam as a system Flatpak.
+  tailscale      Enable or disable the Tailscale system service.
+  podman         Enable or disable the rootless Podman API socket.
+  github-runner  Register and run a repository-scoped self-hosted runner.
 
 Included base capabilities:
-  distrobox   Already included in Ark desktop images; no daemon to enable.
+  distrobox      Already included in Ark desktop images; no daemon to enable.
 
 Examples:
   ark steam enable
   ark tailscale enable
   ark podman enable
+  ark github-runner enable
 EOF
 }
 
@@ -121,6 +124,24 @@ podman_action() {
     esac
 }
 
+distrobox_action() {
+    require_command distrobox
+    case "$1" in
+        status)
+            echo "Distrobox: installed in the Ark desktop base image"
+            echo "Distrobox is a user command, not a background service."
+            ;;
+        enable)
+            echo "Distrobox is already included and ready to use."
+            ;;
+        disable)
+            echo "Distrobox is part of the immutable base image and cannot be removed independently." >&2
+            echo "It can be omitted from a future custom image build." >&2
+            exit 2
+            ;;
+    esac
+}
+
 github_runner_action() {
     local action="$1"
     local runner_dir="$HOME/.local/opt/ark-github-runner"
@@ -150,6 +171,7 @@ github_runner_action() {
                 echo "The initial Ark runner setup supports x86_64 hosts only." >&2
                 exit 2
             }
+
             local repo_url token asset_url runner_name
             read -r -p "GitHub repository URL (https://github.com/OWNER/REPO): " repo_url
             [[ "$repo_url" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/?$ ]] || {
@@ -159,6 +181,7 @@ github_runner_action() {
             read -r -s -p "Short-lived runner registration token: " token
             echo
             [[ -n "$token" ]] || { echo "A registration token is required." >&2; exit 2; }
+
             asset_url=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest |
                 jq -er '[.assets[] | select(.name | test("^actions-runner-linux-x64-[0-9.]+\\.tar\\.gz$"))][0].browser_download_url')
             mkdir -p "$runner_dir" "$unit_dir"
@@ -173,6 +196,7 @@ github_runner_action() {
             )
             unset token
             chmod 600 "$runner_dir"/.credentials* 2>/dev/null || true
+
             cat > "$unit_file" <<'EOF'
 [Unit]
 Description=Ark GitHub Actions Self-hosted Runner
@@ -192,7 +216,8 @@ EOF
             systemctl --user enable --now ark-github-runner.service
             if command -v loginctl >/dev/null 2>&1; then
                 echo "Enabling user lingering so the runner can start without an interactive login."
-                as_root loginctl enable-linger "$USER"
+                as_root loginctl enable-linger "$USER" ||
+                    echo "Warning: enable lingering manually if the runner must start before you log in."
             fi
             echo "Runner registered with label ark-builder."
             echo "Only use this runner for trusted workflows from repositories you control."
@@ -216,32 +241,15 @@ EOF
     esac
 }
 
-distrobox_action() {
-    require_command distrobox
-    case "$1" in
-        status)
-            echo "Distrobox: installed in the Ark desktop base image"
-            echo "Distrobox is a user command, not a background service."
-            ;;
-        enable)
-            echo "Distrobox is already included and ready to use."
-            ;;
-        disable)
-            echo "Distrobox is part of the immutable base image and cannot be removed independently."
-            echo "It can be omitted from a future custom image build."
-            exit 2
-            ;;
-    esac
-}
-
 run_feature() {
     local action="$1"
     local feature="$2"
     case "$feature" in
         steam) steam_action "$action" ;;
         tailscale) tailscale_action "$action" ;;
-        podman) podman_action "$action" ;;\n    github-runner) github_runner_action "$action" ;;\n        github-runner) github_runner_action "$action" ;;
+        podman) podman_action "$action" ;;
         distrobox) distrobox_action "$action" ;;
+        github-runner) github_runner_action "$action" ;;
         *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
     esac
 }
@@ -253,12 +261,13 @@ feature_action() {
         list)
             cat <<'EOF'
 Manageable:
-  steam       Optional system-wide Flatpak
-  tailscale   Optional system service
-  podman      Optional rootless API socket
+  steam          Optional system-wide Flatpak
+  tailscale      Optional system service
+  podman         Optional rootless API socket
+  github-runner  Optional repository-scoped runner service
 
 Included in the desktop base:
-  distrobox   Always available; no service toggle
+  distrobox      Always available; no service toggle
 EOF
             ;;
         status)
@@ -269,6 +278,7 @@ EOF
                 tailscale_action status
                 podman_action status
                 distrobox_action status
+                github_runner_action status
             fi
             ;;
         enable|disable|unregister)
@@ -306,10 +316,4 @@ case "$action" in
     *) usage; exit 2 ;;
 esac
 
-case "$feature" in
-    steam) steam_action "$action" ;;
-    tailscale) tailscale_action "$action" ;;
-    podman) podman_action "$action" ;;
-    distrobox) distrobox_action "$action" ;;
-    *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
-esac
+run_feature "$action" "$feature"
