@@ -62,8 +62,6 @@ else
     test -s /usr/lib/systemd/system/plasmalogin.service
     test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
     test -x /usr/share/PackageKit/helpers/bootc/bootcBackend.py
-    grep -Eq '^DefaultBackend=bootc
- /etc/PackageKit/PackageKit.conf
-    grep -q '^%wheel ALL=(ALL:ALL) ALL
- /etc/sudoers.d/10-wheel
+    grep -Eq '^DefaultBackend=bootc$' /etc/PackageKit/PackageKit.conf
+    grep -q '^%wheel ALL=(ALL:ALL) ALL$' /etc/sudoers.d/10-wheel
 fi
