@@ -164,6 +164,13 @@ COPY alga-update.timer /usr/lib/systemd/system/alga-update.timer
 RUN chmod +x /usr/lib/ark/alga-wrapper && \
     systemctl enable alga-update.timer
 
+# Layer 9a: bootc updates track the final image reference recorded at install time.
+COPY ark-bootc-update.service /usr/lib/systemd/system/ark-bootc-update.service
+COPY ark-bootc-update.timer /usr/lib/systemd/system/ark-bootc-update.timer
+COPY ark-os-update /usr/bin/ark-os-update
+RUN chmod 0755 /usr/bin/ark-os-update && \
+    systemctl enable ark-bootc-update.timer
+
 # Layer 9b: MoreWaita folder icons autostart
 COPY ark-folder-icons.sh /usr/libexec/ark/ark-folder-icons.sh
 COPY ark-folder-icons.desktop /etc/xdg/autostart/ark-folder-icons.desktop
