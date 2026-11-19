@@ -300,11 +300,11 @@ RUN set -e; \
     if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
         pacman -S --noconfirm librsvg; \
         git clone --quiet https://github.com/lydiaperspective/lyd-ark-themes.git /tmp/lyd-ark-themes; \
-        git -C /tmp/lyd-ark-themes checkout --quiet 684a773c3af95c0e42cc814e64b4018a033aaa6b; \
+        git -C /tmp/lyd-ark-themes checkout --quiet 73fe1d1f53117cffa8c21b0a2a70b075a3242958; \
         install -d /usr/share/plymouth/themes/lyd-ark-wicca; \
         cp -a /tmp/lyd-ark-themes/themes/wicca/plymouth/. /usr/share/plymouth/themes/lyd-ark-wicca/; \
         for asset in /usr/share/plymouth/themes/lyd-ark-wicca/*.svg; do \
-            rsvg-convert "$asset" > "${asset%.svg}.png"; \
+            rsvg-convert "$asset" > "\${asset%.svg}.png"; \
         done; \
         rm /usr/share/plymouth/themes/lyd-ark-wicca/*.svg; \
         plymouth-set-default-theme lyd-ark-wicca; \
@@ -351,6 +351,7 @@ RUN rm -rf \
 COPY clean-runtime.py /usr/lib/ark/clean-runtime.py
 RUN python /usr/lib/ark/clean-runtime.py
  /etc/plymouth/plymouthd.conf; \
+        for asset in /usr/share/plymouth/themes/lyd-ark-wicca/*.png; do test -s "$asset"; done; \
         rm -rf /tmp/lyd-ark-themes; \
     fi
 
