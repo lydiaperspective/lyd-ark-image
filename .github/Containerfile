@@ -71,7 +71,7 @@ RUN set -e; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
     mkdir -p /etc/sudoers.d; \
-    printf '%s\\n' '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel; \
+    printf '%s\n' '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel; \
     chmod 0440 /etc/sudoers.d/10-wheel; \
     visudo -cf /etc/sudoers; \
     systemctl mask systemd-firstboot.service; \
