@@ -24,7 +24,7 @@ RUN set -e; \
         webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
         util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
         btrfs-progs snapper snap-pac podman composefs ibus iso-codes shadow sudo git nano zsh fish python rsync acl libnotify slirp4netns passt fuse-overlayfs catatonit; \
-    sed -i 's/^#\(.*UTF-8.*\)/\1/' /etc/locale.gen; \
+    sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime; \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap; \
@@ -39,10 +39,7 @@ RUN systemctl enable sddm NetworkManager tuned tuned-ppd && \
     ln -sfn sysroot/ostree /ostree && \
     glib-compile-schemas /usr/share/glib-2.0/schemas/
 
-# KDE Plasma defaults; no automatic login on installed systems.
-RUN mkdir -p /etc/sddm.conf.d && \
-    printf '[Autologin]\nUser=\nSession=\n' > /etc/sddm.conf.d/ark-no-autologin.conf && \
-    rm -f /etc/sddm.conf.d/autologin.conf /etc/sddm.conf.d/ark-autologin.conf
+# SDDM uses its normal login prompt; no autologin configuration is installed.
 
 # Layer 3: bootupd + home/root symlinks
 RUN [ -f /usr/libexec/bootupd ] && chmod +x /usr/libexec/bootupd /usr/bin/bootupctl || true; \
