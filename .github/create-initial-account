@@ -1,52 +1,77 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PENDING=/var/lib/ark-installer/pending-account
+# This runs on the installed system's first boot, on tty1. No account
+# credentials are collected or written by the live installer.
+exec </dev/tty >/dev/tty 2>&1
 
-[[ -f "$PENDING" ]] || exit 0
-[[ -r "$PENDING" ]] || { echo "Initial account data is not readable" >&2; exit 1; }
+clear
+printf '\n'
+printf '==============================================\n'
+printf '       Welcome to your new Lyd Ark system\n'
+printf '==============================================\n\n'
+printf 'Let us create your administrator account.\n'
+printf 'This account will be used to sign in and administer the system.\n\n'
 
-mapfile -t ACCOUNT < "$PENDING"
-if [[ "${#ACCOUNT[@]}" -ne 3 ]]; then
-    echo "Initial account data is malformed (expected three lines)" >&2
-    exit 1
-fi
+while true; do
+    read -r -p 'Username (lowercase): ' USERNAME
+    if [[ ! "$USERNAME" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+        printf 'Use 1-32 lowercase letters, digits, underscores or hyphens; start with a letter or underscore.\n\n'
+        continue
+    fi
+    if getent passwd "$USERNAME" >/dev/null; then
+        printf 'That username already exists. Choose another one.\n\n'
+        continue
+    fi
+    break
+done
 
-USERNAME="${ACCOUNT[0]}"
-FULL_NAME="${ACCOUNT[1]}"
-PASSWORD_HASH="${ACCOUNT[2]}"
+while true; do
+    read -r -p 'Display name: ' FULL_NAME
+    if [[ -z "${FULL_NAME//[[:space:]]/}" || "$FULL_NAME" == *$'\n'* || "$FULL_NAME" == *$'\r'* ]]; then
+        printf 'Please enter a valid display name.\n\n'
+        continue
+    fi
+    break
+done
 
-[[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || {
-    echo "Initial account username is invalid" >&2
+while true; do
+    read -r -s -p 'Password (at least 8 characters): ' PASSWORD
+    printf '\n'
+    if (( ${#PASSWORD} < 8 )) || [[ "$PASSWORD" == *:* || "$PASSWORD" == *$'\n'* || "$PASSWORD" == *$'\r'* ]]; then
+        unset PASSWORD
+        printf 'Use at least 8 characters. Colons are not supported.\n\n'
+        continue
+    fi
+    read -r -s -p 'Confirm password: ' PASSWORD_CONFIRM
+    printf '\n'
+    if [[ "$PASSWORD" != "$PASSWORD_CONFIRM" ]]; then
+        unset PASSWORD PASSWORD_CONFIRM
+        printf 'The passwords do not match. Try again.\n\n'
+        continue
+    fi
+    break
+done
+
+PASSWORD_HASH=$(printf '%s' "$PASSWORD" | openssl passwd -6 -stdin)
+unset PASSWORD PASSWORD_CONFIRM
+[[ "$PASSWORD_HASH" == '$6$'* ]] || {
+    printf 'Could not securely process the password. Please reboot and try again.\n' >&2
     exit 1
 }
-[[ -n "$FULL_NAME" && "$FULL_NAME" != *$'\n'* ]] || {
-    echo "Initial account display name is invalid" >&2
-    exit 1
-}
-[[ "$PASSWORD_HASH" =~ ^\$6\$[A-Za-z0-9./$]+$ ]] || {
-    echo "Initial account password hash is invalid" >&2
-    exit 1
-}
 
-if getent passwd "$USERNAME" >/dev/null; then
-    # Complete a partially-created account from an interrupted first-boot run,
-    # but never take over an unrelated account.
-    id -nG "$USERNAME" | tr ' ' '\n' | grep -qx wheel || {
-        echo "An unrelated account already uses the requested username: $USERNAME" >&2
-        exit 1
-    }
-    usermod --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
-else
-    useradd --create-home --groups wheel --shell /bin/bash \
-        --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
-fi
+printf '\nCreating your administrator account...\n'
+useradd --create-home --groups wheel --shell /bin/bash \
+    --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
 
 id "$USERNAME" >/dev/null
 id -nG "$USERNAME" | tr ' ' '\n' | grep -qx wheel
 
-# Remove the staged password hash once the account has been verified.
-shred --remove --zero "$PENDING" 2>/dev/null || rm -f "$PENDING"
-rmdir /var/lib/ark-installer 2>/dev/null || true
+install -d -m 0755 /var/lib/ark-installer
+install -m 0644 /dev/null /var/lib/ark-installer/account-created
 
-echo "Created initial administrator account: $USERNAME"
+printf '\nYour administrator account has been created successfully.\n'
+printf 'You can now sign in as %s.\n\n' "$USERNAME"
+printf 'Starting the Lyd Ark login screen...\n'
+sleep 2
+exit 0
