@@ -60,13 +60,14 @@ RUN set -e; \
     echo "arklinux" > /etc/hostname; \
     pacman -Scc --noconfirm
 
-# Layer 1b: First-boot account provisioning. Agka stages a password hash in
-# the writable @var subvolume; this service creates the account after boot,
-# when the bootc deployment's writable /etc is active.
+# Layer 1b: First-boot account setup. The live installer does not collect,
+# store, or write account credentials. The installed system prompts on tty1.
 COPY create-initial-account /usr/libexec/ark/create-initial-account
 COPY ark-initial-account.service /usr/lib/systemd/system/ark-initial-account.service
 RUN chmod 0755 /usr/libexec/ark/create-initial-account && \
-    systemctl enable ark-initial-account.service
+    systemctl enable ark-initial-account.service && \
+    mkdir -p /usr/lib/systemd/system/plasmalogin.service.d && \
+    printf '[Unit]\\nRequires=ark-initial-account.service\\nAfter=ark-initial-account.service\\n' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf
 
 # Layer 2: OSTree sysroot + systemd services
 RUN set -e; \
