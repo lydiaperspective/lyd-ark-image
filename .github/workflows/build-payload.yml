@@ -226,7 +226,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        variant: [ark-nvidia-580]
+        variant: [ark-nvidia-580, ark-zen-nvidia-580, ark-lts-nvidia-580, ark-hardened-nvidia-580, ark-apex-nvidia-580, ark-apex-bore-nvidia-580, ark-apex-lts-nvidia-580, ark-apex-hardened-nvidia-580, ark-zen-asus-nvidia-580]
     steps:
       - uses: actions/checkout@v6
       - name: Free Disk Space
