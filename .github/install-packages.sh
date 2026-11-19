@@ -44,3 +44,11 @@ if /usr/bin/pacman -Qq | grep -Eq '^(zfs|zfs-|spl|spl-)'; then
 fi
 test -f /usr/lib/initcpio/install/plymouth
 test -f /usr/lib/initcpio/hooks/plymouth
+
+# Desktop images must retain the bootc-aware Discover integration after the
+# kernel and driver layers are composed. Server images intentionally omit it.
+if [[ -f /usr/lib/packagekit-backend/libpk_backend_bootc.so ]]; then
+    /usr/bin/pacman -Q discover packagekit packagekit-qt6
+    test -x /usr/share/PackageKit/helpers/bootc/bootcBackend.py
+    grep -Eq '^DefaultBackend=bootc /etc/PackageKit/PackageKit.conf
+fi
