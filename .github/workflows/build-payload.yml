@@ -8,6 +8,7 @@ on:
       - '.github/create-initial-account'
       - '.github/ark-initial-account.service'
       - '.github/workflows/build-payload.yml'
+      - '.github/workflows/rebuild-base-images.yml'
       - '.github/tests/test_build_inputs.py'
   schedule:
     - cron: '0 4 * * 1' # Weekly, Monday at 04:00 UTC
