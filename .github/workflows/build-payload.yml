@@ -461,7 +461,9 @@ jobs:
       - name: Validate first-boot account provisioning
         run: |
           bash -n .github/create-initial-account
-          grep -q 'ConditionPathExists=/var/lib/ark-installer/pending-account' .github/ark-initial-account.service
+          grep -q 'ConditionPathExists=!/var/lib/ark-installer/account-created' .github/ark-initial-account.service
+          grep -q 'StandardInput=tty' .github/ark-initial-account.service
+          grep -q 'Requires=ark-initial-account.service' .github/Containerfile
 
       - name: Build, lint, and publish final image
         run: |
