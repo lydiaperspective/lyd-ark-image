@@ -1,6 +1,13 @@
 name: Build Lyd Ark Image Payload
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/Containerfile'
+      - '.github/create-initial-account'
+      - '.github/ark-initial-account.service'
+      - '.github/workflows/build-payload.yml'
   schedule:
     - cron: '0 4 * * 1' # Weekly, Monday at 04:00 UTC
   workflow_dispatch:
@@ -114,6 +121,12 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "needs-build=true" >> $GITHUB_OUTPUT
             echo "reason=weekly-scheduled" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "needs-build=true" >> $GITHUB_OUTPUT
+            echo "reason=source-change" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -443,6 +456,11 @@ jobs:
         run: |
           if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
           printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Validate first-boot account provisioning
+        run: |
+          bash -n .github/create-initial-account
+          grep -q 'ConditionPathExists=/var/lib/ark-installer/pending-account' .github/ark-initial-account.service
+
       - name: Build, lint, and publish final image
         run: |
           if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
