@@ -1,13 +1,21 @@
 [Unit]
-Description=Create the initial Lyd Ark administrator account
+Description=First-boot Lyd Ark administrator account setup
 Documentation=https://github.com/lydiaperspective/lyd-agka
-After=local-fs.target
-Before=display-manager.service plasmalogin.service sshd.service cockpit.socket
-ConditionPathExists=/var/lib/ark-installer/pending-account
+After=local-fs.target systemd-user-sessions.service
+Before=display-manager.service plasmalogin.service
+ConditionPathExists=!/var/lib/ark-installer/account-created
+Conflicts=getty@tty1.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/ark/create-initial-account
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
 RemainAfterExit=yes
 
 [Install]
