@@ -222,7 +222,7 @@ RUN --mount=type=bind,source=aur-packages,target=/tmp/aur-packages \
         if [[ "$VARIANT" == *"-hardened"* ]]; then KERNEL="linux-hardened"; fi; \
         pacman -S --noconfirm $KERNEL ${KERNEL}-headers; \
     fi; \
-    bash /usr/lib/ark/install-packages.sh; \
+    VARIANT="$VARIANT" bash /usr/lib/ark/install-packages.sh; \
     locale-gen; \
     KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
     dkms autoinstall -k "$KVER"; \
