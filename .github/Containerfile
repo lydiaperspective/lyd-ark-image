@@ -103,8 +103,13 @@ COPY ark-bindmounts-pam /usr/lib/ark/ark-bindmounts-pam
 COPY ark-bindmounts.service /usr/lib/systemd/system/ark-bindmounts.service
 COPY ark /usr/bin/ark
 COPY ark-mimeapps.list /etc/xdg/mimeapps.list
-RUN bash -n /usr/bin/ark && \
-    chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam /usr/bin/ark && \
+RUN if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
+        rm -f /usr/bin/ark /etc/xdg/mimeapps.list; \
+    else \
+        bash -n /usr/bin/ark; \
+        chmod +x /usr/bin/ark; \
+    fi; \
+    chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam && \
     systemctl enable ark-bindmounts.service && \
     { grep -q 'pam_exec.so.*ark-bindmounts-pam' /etc/pam.d/system-login 2>/dev/null || \
       echo 'session optional pam_exec.so /usr/lib/ark/ark-bindmounts-pam' >> /etc/pam.d/system-login; }
