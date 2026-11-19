@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PENDING=/var/lib/ark-installer/pending-account
+
+[[ -f "$PENDING" ]] || exit 0
+[[ -r "$PENDING" ]] || { echo "Initial account data is not readable" >&2; exit 1; }
+
+mapfile -t ACCOUNT < "$PENDING"
+if [[ "${#ACCOUNT[@]}" -ne 3 ]]; then
+    echo "Initial account data is malformed (expected three lines)" >&2
+    exit 1
+fi
+
+USERNAME="${ACCOUNT[0]}"
+FULL_NAME="${ACCOUNT[1]}"
+PASSWORD_HASH="${ACCOUNT[2]}"
+
+[[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || {
+    echo "Initial account username is invalid" >&2
+    exit 1
+}
+[[ -n "$FULL_NAME" && "$FULL_NAME" != *$'\n'* ]] || {
+    echo "Initial account display name is invalid" >&2
+    exit 1
+}
+[[ "$PASSWORD_HASH" =~ ^\$6\$[A-Za-z0-9./$]+$ ]] || {
+    echo "Initial account password hash is invalid" >&2
+    exit 1
+}
+
+if getent passwd "$USERNAME" >/dev/null; then
+    echo "Refusing to overwrite an existing account: $USERNAME" >&2
+    exit 1
+fi
+
+useradd --create-home --groups wheel --shell /bin/bash \
+    --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
+
+id "$USERNAME" >/dev/null
+id -nG "$USERNAME" | tr ' ' '\n' | grep -qx wheel
+
+# Remove the staged password hash once the account has been verified.
+shred --remove --zero "$PENDING" 2>/dev/null || rm -f "$PENDING"
+rmdir /var/lib/ark-installer 2>/dev/null || true
+
+echo "Created initial administrator account: $USERNAME"
