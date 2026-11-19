@@ -11,7 +11,7 @@ import urllib.request
 
 
 def release_metadata(release_id):
-    headers = {"User-Agent": "ark-image", "Accept": "application/vnd.github+json"}
+    headers = {"User-Agent": "lyd-ark-image-builder", "Accept": "application/vnd.github+json"}
     if os.environ.get("GH_TOKEN"):
         headers["Authorization"] = f"Bearer {os.environ['GH_TOKEN']}"
     request = urllib.request.Request(
