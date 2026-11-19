@@ -1,4 +1,4 @@
-name: Rebuild Base Images
+name: Rebuild Lyd Ark Base Images
 
 on:
   push:
