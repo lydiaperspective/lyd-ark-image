@@ -230,18 +230,83 @@ jobs:
           printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u '${{ github.actor }}' --password-stdin
           "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:agents
 
-  build-payload:
+  # Publish the two userspace roots first. They contain no kernel or GPU driver.
+  build-base:
     needs: [check-digest, build-agent-environment]
     if: needs.check-digest.outputs.needs-build == 'true'
     runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     permissions:
-      contents: write
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [desktop, server]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Free Disk Space
+        if: inputs.runner != 'self-hosted'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      - name: Prepare Podman
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner first." >&2; exit 1; }
+          else
+            sudo apt-get update && sudo apt-get install -y podman
+          fi
+      - name: Log in to GitHub Container Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Build and publish userspace base
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          if [ "${{ matrix.profile }}" = "server" ]; then
+            VARIANT=intel3-server-lts
+            TAG=base-server
+          else
+            VARIANT=intel-modern
+            TAG=base-desktop
+          fi
+          "${PODMAN[@]}" build --target base \
+            --build-arg VARIANT="$VARIANT" \
+            --build-arg CARRIER_SHA='${{ needs.check-digest.outputs.carrier-sha }}' \
+            --build-arg CARRIER_URL='${{ needs.check-digest.outputs.carrier-url }}' \
+            -t ghcr.io/${{ github.repository }}:"$TAG" -f .github/Containerfile .github/
+          "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:"$TAG"
+
+  # Add one kernel family to each appropriate userspace base.
+  build-kernel:
+    needs: [check-digest, build-base]
+    if: needs.check-digest.outputs.needs-build == 'true'
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
+    permissions:
+      contents: read
       packages: write
     strategy:
       fail-fast: false
       max-parallel: 2
       matrix:
-        variant: [intel-modern, intel-modern-apex, intel3-server-lts, ark-nvidia-580, ark-apex-nvidia-580, ark-nvidia-open, ark-apex-nvidia-open]
+        include:
+          - name: desktop-standard
+            base: base-desktop
+            variant: intel-modern
+          - name: desktop-apex
+            base: base-desktop
+            variant: intel-modern-apex
+          - name: server-lts
+            base: base-server
+            variant: intel3-server-lts
     steps:
       - uses: actions/checkout@v6
       - name: Free Disk Space
@@ -277,7 +342,6 @@ jobs:
           ALGA_RELEASE_ID: ${{ needs.check-digest.outputs.alga-sha }}
         run: |
           mkdir -p .github/aur-packages
-          # Do not allow an older Alga archive from the shared package bundle to be installed.
           find .github/aur-packages -maxdepth 1 -type f -name 'alga*.pkg.tar.zst' -delete
           curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$PACKAGE_URL" -o .github/aur-packages/alga.pkg.tar.zst
           test -s .github/aur-packages/alga.pkg.tar.zst
@@ -285,13 +349,10 @@ jobs:
           ALGA_META=$("${PODMAN[@]}" run --rm -v "$PWD/.github/aur-packages:/packages:ro" docker.io/archlinux:latest pacman -Qp /packages/alga.pkg.tar.zst)
           [[ "$ALGA_META" == alga\ * ]] || { echo "Unexpected installer package: $ALGA_META" >&2; exit 1; }
           echo "Verified Alga installer from lyd-agka release ID $ALGA_RELEASE_ID: $ALGA_META"
-          echo "Release asset: $PACKAGE_URL"
-
       - name: Download ark-backgrounds
         env:
           PACKAGE_URL: ${{ needs.check-digest.outputs.backgrounds-url }}
         run: curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$PACKAGE_URL" -o .github/aur-packages/backgrounds.pkg.tar.zst
-
       - name: Download Prebuilt Pacman Cache
         env:
           GH_TOKEN: ${{ github.token }}
@@ -306,37 +367,101 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .github/pacman-cache/
-          key: ${{ runner.os }}-pacman-payload-${{ matrix.variant }}-${{ hashFiles('.github/Containerfile') }}
+          key: ${{ runner.os }}-pacman-payload-kernel-${{ matrix.name }}-${{ hashFiles('.github/Containerfile') }}
           restore-keys: |
-            ${{ runner.os }}-pacman-payload-${{ matrix.variant }}-
+            ${{ runner.os }}-pacman-payload-kernel-${{ matrix.name }}-
             ${{ runner.os }}-pacman-payload-
       - name: Prepare Cache Dir
         run: mkdir -p .github/pacman-cache
-      - name: Build custom ark image with bootupd
-        run: |
-          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
-          "${PODMAN[@]}" build -v $(pwd)/.github/pacman-cache:/var/cache/pacman/pkg --build-arg CARRIER_SHA=${{ needs.check-digest.outputs.carrier-sha }} --build-arg CARRIER_URL="${{ needs.check-digest.outputs.carrier-url }}" --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} --build-arg VARIANT=${{ matrix.variant }} -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} -f .github/Containerfile .github/
-          # Inspect the finished artifact without the runner-owned build cache mount.
-          "${PODMAN[@]}" run --rm --entrypoint /usr/bin/bootc ghcr.io/${{ github.repository }}:${{ matrix.variant }} container lint
-          if [ "${{ inputs.runner }}" != "self-hosted" ]; then sudo chown -R "$USER:$USER" .github/pacman-cache/; fi
       - name: Log in to GitHub Container Registry
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_USER: ${{ github.actor }}
         run: |
           if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
-          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io --username "$GH_USER" --password-stdin
-      - name: Push payload image to GHCR
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Build and publish kernel image
         run: |
           if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          "${PODMAN[@]}" build -v "$PWD/.github/pacman-cache:/var/cache/pacman/pkg" \
+            --target kernel \
+            --build-arg BASE_IMAGE=ghcr.io/${{ github.repository }}:${{ matrix.base }} \
+            --build-arg VARIANT=${{ matrix.variant }} \
+            --build-arg AUR_SHA=${{ needs.check-digest.outputs.aur-sha }} \
+            -t ghcr.io/${{ github.repository }}:kernel-${{ matrix.name }} \
+            -f .github/Containerfile .github/
+          "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:kernel-${{ matrix.name }}
+          if [ "${{ inputs.runner }}" != "self-hosted" ]; then sudo chown -R "$USER:$USER" .github/pacman-cache/; fi
+
+  # Compose the driver choice onto the matching kernel image. Legacy public tags stay unchanged.
+  build-final:
+    needs: [check-digest, build-kernel]
+    if: needs.check-digest.outputs.needs-build == 'true'
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - variant: intel-modern
+            kernel: kernel-desktop-standard
+          - variant: intel-modern-apex
+            kernel: kernel-desktop-apex
+          - variant: intel3-server-lts
+            kernel: kernel-server-lts
+          - variant: ark-nvidia-580
+            kernel: kernel-desktop-standard
+          - variant: ark-apex-nvidia-580
+            kernel: kernel-desktop-apex
+          - variant: ark-nvidia-open
+            kernel: kernel-desktop-standard
+          - variant: ark-apex-nvidia-open
+            kernel: kernel-desktop-apex
+    steps:
+      - uses: actions/checkout@v6
+      - name: Free Disk Space
+        if: inputs.runner != 'self-hosted'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      - name: Prepare Podman
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner first." >&2; exit 1; }
+          else
+            sudo apt-get update && sudo apt-get install -y podman
+          fi
+      - name: Log in to GitHub Container Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Build, lint, and publish final image
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          "${PODMAN[@]}" build \
+            --build-arg KERNEL_IMAGE=ghcr.io/${{ github.repository }}:${{ matrix.kernel }} \
+            --build-arg VARIANT=${{ matrix.variant }} \
+            -t ghcr.io/${{ github.repository }}:${{ matrix.variant }} \
+            -f .github/Containerfile .github/
+          "${PODMAN[@]}" run --rm --entrypoint /usr/bin/bootc ghcr.io/${{ github.repository }}:${{ matrix.variant }} container lint
           "${PODMAN[@]}" push --compression-format zstd:chunked ghcr.io/${{ github.repository }}:${{ matrix.variant }}
 
   update-cache:
-    needs: [check-digest, build-payload]
+    needs: [check-digest, build-final]
     if: |
       !cancelled() &&
       needs.check-digest.outputs.needs-build == 'true' &&
-      needs.build-payload.result == 'success'
+      needs.build-final.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       actions: write

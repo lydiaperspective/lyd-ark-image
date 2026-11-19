@@ -1,61 +1,101 @@
-# ark-image
+# Ark image builder
 
-OCI container image build logic for an immutable Arch Linux system.
+This repository builds the immutable Ark Linux OCI images used by the installer. Images are composed in three independently published stages:
 
-This repository defines the base `Containerfile` used to provision the OSTree deployment. It builds upon `archlinux:latest` and integrates `bootc` to enable atomic system updates. It is strictly vanilla Arch Linux, packaged as an immutable container.
+1. **Userspace base** — desktop KDE profile or headless server profile, shared system services and common tools. No kernel or GPU driver is installed in this stage.
+2. **Kernel image** — adds one kernel family and its headers to the appropriate userspace base, then installs the shared Ark AUR payload.
+3. **Final image** — adds the selected GPU driver (if any), builds the initramfs after the driver is present, and performs bootc cleanup and validation.
 
-## Included Software
+The intermediate tags are implementation layers. Users and the installer should consume the final variant tags listed below.
 
-| Package | Source |
-|---------|--------|
-| GNOME Shell + core apps | Arch official repos |
-| systemd-boot (via bootc) | Arch official repos |
-| Btrfs + Snapper + snap-pac | Arch official repos |
-| Podman + Distrobox | Arch official repos |
-| Nix package manager | Pre-built via ark-aur |
-| Plymouth (boot splash) | Pre-built via ark-aur |
-| MoreWaita icon theme | Pre-built via ark-aur |
-| starship, fastfetch | Pre-built via ark-aur |
-| bootc, bootupd, ostree | Pre-built via ark-aur |
+## Published final images
+
+| Final tag | Userspace | Kernel | GPU driver |
+|---|---|---|---|
+| `intel-modern` | KDE Plasma desktop | Arch `linux` | Mesa / Intel iGPU |
+| `intel-modern-apex` | KDE Plasma desktop | CachyOS Apex | Mesa / Intel iGPU |
+| `intel3-server-lts` | Headless server | Arch `linux-lts` | No proprietary GPU stack |
+| `ark-nvidia-580` | KDE Plasma desktop | Arch `linux` | NVIDIA 580 proprietary DKMS |
+| `ark-apex-nvidia-580` | KDE Plasma desktop | CachyOS Apex | NVIDIA 580 proprietary DKMS |
+| `ark-nvidia-open` | KDE Plasma desktop | Arch `linux` | NVIDIA open DKMS |
+| `ark-apex-nvidia-open` | KDE Plasma desktop | CachyOS Apex | NVIDIA open DKMS |
+
+The existing final image tags remain stable so installer references do not need to change during this refactor.
+
+## Intermediate image tags
+
+The workflow publishes these tags to GHCR so each stage can be reused:
+
+| Stage | Tags |
+|---|---|
+| Userspace bases | `base-desktop`, `base-server` |
+| Kernel images | `kernel-desktop-standard`, `kernel-desktop-apex`, `kernel-server-lts` |
+
+The build order is **base → kernel → final driver image**. The final stage always generates the initramfs after adding the selected driver, ensuring the boot image contains the correct modules. The intermediate base and kernel tags are not bootable install targets.
+
+## Build workflow
+
+`.github/workflows/build-payload.yml` runs the stages in dependency order and publishes each stage to GHCR. Existing automatic push/scheduled builds use GitHub-hosted runners. Manual dispatch supports either:
+
+- `github-hosted` — GitHub-hosted runner (default)
+- `self-hosted` — a registered x86_64 Linux runner with rootless Podman, `wget`, and `curl`, labelled `ark-builder`
+
+The workflow builds only the three required kernel layers, then composes the seven final variants. The NVIDIA driver is no longer reinstalled for every kernel build; it is added only in the final stage that needs it.
 
 ## Build arguments
 
-- `VARIANT`: Specifies kernel and driver combinations (e.g., `ark-zen-nvidia`).
+- `VARIANT`: selects the desktop/server profile and the kernel or driver configuration.
+- `BASE_IMAGE`: source userspace image for the kernel stage.
+- `KERNEL_IMAGE`: source kernel image for the final driver stage.
+- `AUR_SHA`, `CARRIER_SHA`, and `CARRIER_URL`: pin the external Ark payload inputs used by the build.
 
-The GitHub Actions workflow builds the proprietary NVIDIA 580xx DKMS driver variants for the standard, Zen, LTS, Hardened, and Apex kernel choices, including the Zen ASUS combination. Matching userspace packages are sourced from CachyOS. CachyOS is removed from the installed image's enabled repository configuration after the driver is installed. Standard open-driver images continue to use the existing upstream variants.
+## System design
 
-The system filesystem and snapshot stack is Btrfs + Snapper, with `snap-pac` for Pacman transaction snapshots. ZFS/SPL packages are explicitly excluded from the shared ark-aur package release and the build verifies that none are installed. The installer must create the Btrfs subvolume layout and initialize Snapper's `root` configuration on the target filesystem; the image build cannot create Btrfs subvolumes inside its ordinary container build root. The system currently uses systemd-boot, so `grub-btrfs` is not included.
+Ark uses Btrfs + Snapper + snap-pac. ZFS/SPL packages are excluded. The installer creates the Btrfs subvolume layout and initializes Snapper's `root` configuration on the target filesystem.
 
-## Local Build
+The desktop profile uses KDE Plasma, Waterfox from Flathub, TuneD/tuned-ppd, Podman, and the Ark feature manager. The server profile is headless, uses the LTS kernel, enables Cockpit and SSH, and permits SSH password authentication while disabling root SSH login.
+
+## Local build examples
+
+Build the desktop userspace base:
 
 ```bash
-podman build -t localhost/ark-image:test -f .github/Containerfile --build-arg VARIANT="ark-nvidia-580" .github/
+podman build --target base --build-arg VARIANT=intel-modern \
+  -t localhost/ark:base-desktop -f .github/Containerfile .github/
 ```
 
-## Repository Structure
+Build its standard kernel layer:
 
-All build files live inside `.github/`:
+```bash
+podman build --target kernel \
+  --build-arg BASE_IMAGE=localhost/ark:base-desktop \
+  --build-arg VARIANT=intel-modern \
+  -t localhost/ark:kernel-desktop-standard \
+  -f .github/Containerfile .github/
+```
 
-- `Containerfile` — image definition
-- `bls-sync.sh` — BLS boot entry sync script (runs on every boot and after upgrades)
-- `ark-bls-sync.service` — systemd service for boot-time BLS sync
-- `bls-sync.conf` — drop-in for ostree/bootc finalize-staged services
-- `ark-home.conf` — tmpfiles.d entry ensuring `/var/home` exists on every boot
-- `alga-wrapper.sh` — wrapper that prefers updated alga binary from `/var/lib/alga/bin`
-- `pacman.sh` — catches accidental `pacman` calls on immutable host
+Build the final image (for an NVIDIA-free Intel desktop):
 
-## BLS Boot Entry Behavior
+```bash
+podman build \
+  --build-arg KERNEL_IMAGE=localhost/ark:kernel-desktop-standard \
+  --build-arg VARIANT=intel-modern \
+  -t localhost/ark:intel-modern \
+  -f .github/Containerfile .github/
+```
 
-After `bootc upgrade`, two boot entries appear in systemd-boot:
-- Current deployment: `Arch Linux YYYYMMDDHHMMSS` (new)
-- Rollback deployment: `Arch Linux YYYYMMDDHHMMSS` (previous)
+Kernel-stage builds also require the AUR package bundle and pacman cache mount used by the GitHub Actions workflow.
 
-On each subsequent upgrade, the oldest deployment is pruned by OSTree, leaving always exactly 2 entries.
+## Repository structure
 
-## System Deployment
+Build files live in `.github/`:
 
-Deployment requires a bootable environment containing `bootc`. See the [ark.linux](https://github.com/zamkara/ark.linux) Live ISO or the [alga](https://github.com/zamkara/alga) installer frontend.
+- `Containerfile` — three-stage userspace, kernel, and final-driver image definition
+- `install-packages.sh` — installs and validates the shared prebuilt Ark AUR payload
+- `build-payload.yml` — staged image build and GHCR publication workflow
+- `bls-sync.sh`, `ark-bls-sync.service`, and `bls-sync.conf` — boot entry synchronization
+- `ark` and related scripts — Ark runtime feature and system integration tools
 
-## License
+## Deployment
 
-MIT
+The installer consumes the final tags above. Intermediate `base-*` and `kernel-*` tags are build inputs only.

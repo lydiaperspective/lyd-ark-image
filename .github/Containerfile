@@ -1,9 +1,11 @@
 # Signature: emFta2FyYQ==
-ARG VARIANT=ark
+# Build stages are published independently and composed into the final bootable image.
+ARG BASE_IMAGE=ghcr.io/lydiaperspective/lyd-ark-image:base-desktop
+ARG KERNEL_IMAGE=ghcr.io/lydiaperspective/lyd-ark-image:kernel-desktop-standard
 
-# Final Image (ark linux)
-FROM docker.io/archlinux:latest
-ARG VARIANT
+# Shared userspace base (desktop or server profile; deliberately has no kernel).
+FROM docker.io/archlinux:latest AS base
+ARG VARIANT=ark
 
 LABEL ostree.bootable="true"
 LABEL containers.bootc="1"
@@ -170,6 +172,10 @@ RUN chmod +x /usr/libexec/ark/ark-folder-icons.sh
 # Layer 10: /usr/local → /var/usrlocal symlink
 RUN rm -rf /usr/local && ln -sf ../var/usrlocal /usr/local
 
+# Kernel stage: add one kernel family to a published base userspace image.
+FROM ${BASE_IMAGE} AS kernel
+ARG VARIANT
+
 # Layer 11: Kernel + AUR packages + DKMS (variant-specific)
 ARG AUR_SHA=unknown
 COPY install-packages.sh /usr/lib/ark/install-packages.sh
@@ -218,6 +224,11 @@ RUN --mount=type=bind,source=aur-packages,target=/tmp/aur-packages \
 # NVIDIA power management config (inert on non-nvidia variants)
 COPY nvidia-pm.conf /etc/modprobe.d/nvidia.conf
 COPY 80-nvidia-pm.rules /usr/lib/udev/rules.d/80-nvidia-pm.rules
+
+# Driver stage: add optional GPU drivers to the selected kernel image.
+# The initramfs is generated only after this stage so it contains the final driver modules.
+FROM ${KERNEL_IMAGE} AS final
+ARG VARIANT
 
 # Layer 12: Nvidia (variant-specific, must be before mkinitcpio)
 RUN set -e; \
