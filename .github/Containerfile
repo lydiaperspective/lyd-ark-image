@@ -15,7 +15,7 @@ RUN set -e; \
     pacman -Syu --noconfirm; \
     if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
         pacman -S --noconfirm \
-            base glibc linux-firmware networkmanager mkinitcpio openssh \
+            base glibc linux-firmware networkmanager mkinitcpio openssh tailscale \
             cockpit cockpit-podman cockpit-storaged cockpit-files cockpit-machines cockpit-pacman \
             udisks2 pcp \
             tuned tuned-ppd \
@@ -26,7 +26,7 @@ RUN set -e; \
             slirp4netns passt fuse-overlayfs catatonit; \
     else \
         pacman -S --noconfirm \
-            base glibc linux-firmware networkmanager mkinitcpio \
+            base glibc linux-firmware networkmanager mkinitcpio tailscale \
             plasma-desktop plasma-workspace plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-icons \
             plasma-systemmonitor powerdevil systemsettings sddm konsole dolphin ark okular kate \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
@@ -50,11 +50,11 @@ RUN set -e; \
 # Layer 2: OSTree sysroot + systemd services
 RUN set -e; \
     if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
-        systemctl enable NetworkManager tuned tuned-ppd sshd cockpit.socket libvirtd.service; \
+        systemctl enable NetworkManager tuned tuned-ppd sshd cockpit.socket libvirtd.service tailscaled.service; \
         mkdir -p /etc/ssh/sshd_config.d; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
-        systemctl enable sddm NetworkManager tuned tuned-ppd libvirtd.service; \
+        systemctl enable sddm NetworkManager tuned tuned-ppd libvirtd.service tailscaled.service; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
     systemctl mask systemd-firstboot.service; \
