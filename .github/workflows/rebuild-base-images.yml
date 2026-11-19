@@ -3,6 +3,14 @@ name: Rebuild Lyd Ark Base Images
 on:
   push:
     branches: [main]
+    # The full payload pipeline already rebuilds base userspaces and then
+    # composes kernels/drivers when these installer/runtime inputs change.
+    paths-ignore:
+      - '.github/Containerfile'
+      - '.github/create-initial-account'
+      - '.github/ark-initial-account.service'
+      - '.github/workflows/build-payload.yml'
+      - '.github/tests/test_build_inputs.py'
   workflow_dispatch:
     inputs:
       profile:
