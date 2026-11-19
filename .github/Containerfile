@@ -39,6 +39,8 @@ RUN set -e; \
             qemu-full libvirt virt-manager dnsmasq iptables-nft edk2-ovmf swtpm \
             fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
             slirp4netns passt fuse-overlayfs catatonit; \
+        flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; \
+        flatpak install --system --noninteractive --assumeyes flathub net.waterfox.waterfox; \
     fi; \
     sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
@@ -54,7 +56,7 @@ RUN set -e; \
         mkdir -p /etc/ssh/sshd_config.d; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
-        systemctl enable sddm NetworkManager tuned tuned-ppd libvirtd.service tailscaled.service; \
+        systemctl enable sddm NetworkManager tuned tuned-ppd libvirtd.service; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
     systemctl mask systemd-firstboot.service; \
@@ -93,13 +95,15 @@ COPY ark-flatpak.conf /usr/lib/tmpfiles.d/ark-flatpak.conf
 COPY ark-containers.conf /usr/lib/tmpfiles.d/ark-containers.conf
 RUN mkdir -p /etc/skel/.local/share/{applications,fonts,icons,themes,backgrounds,sounds} && \
     mkdir -p /etc/profile.d && \
-    printf 'export XDG_DATA_DIRS=/var/share:/usr/local/share:/usr/share\n' > /etc/profile.d/ark-share.sh
+    printf 'export XDG_DATA_DIRS=/var/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share\n' > /etc/profile.d/ark-share.sh
 
 # Layer 6c: Bind mount /var/share into user home directories
 COPY ark-bindmounts /usr/lib/ark/ark-bindmounts
 COPY ark-bindmounts-pam /usr/lib/ark/ark-bindmounts-pam
 COPY ark-bindmounts.service /usr/lib/systemd/system/ark-bindmounts.service
-RUN chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam && \
+COPY ark /usr/bin/ark
+COPY ark-mimeapps.list /etc/xdg/mimeapps.list
+RUN chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam /usr/bin/ark && \
     systemctl enable ark-bindmounts.service && \
     { grep -q 'pam_exec.so.*ark-bindmounts-pam' /etc/pam.d/system-login 2>/dev/null || \
       echo 'session optional pam_exec.so /usr/lib/ark/ark-bindmounts-pam' >> /etc/pam.d/system-login; }
@@ -220,7 +224,7 @@ RUN set -e; \
         pacman-key --populate cachyos; \
         sed -i '/SigLevel = Never/d' /etc/pacman.conf; \
         pacman -Sy --noconfirm; \
-        pacman -S --noconfirm steam nvtop dkms \
+        pacman -S --noconfirm nvtop dkms \
             cachyos/nvidia-580xx-dkms cachyos/nvidia-580xx-utils \
             cachyos/nvidia-580xx-settings cachyos/lib32-nvidia-580xx-utils; \
         KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
@@ -230,7 +234,7 @@ RUN set -e; \
         pacman -Scc --noconfirm; \
     elif [[ "$VARIANT" == *"-nvidia"* ]]; then \
         # Existing NVIDIA variants continue to use Arch's open DKMS driver.
-        pacman -S --noconfirm steam nvtop extra/nvidia-open-dkms \
+        pacman -S --noconfirm nvtop extra/nvidia-open-dkms \
             extra/nvidia-utils extra/nvidia-settings multilib/lib32-nvidia-utils dkms; \
         KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
         dkms autoinstall -k "$KVER"; \
