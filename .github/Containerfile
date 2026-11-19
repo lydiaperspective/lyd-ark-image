@@ -12,6 +12,7 @@ LABEL containers.bootc="1"
 
 # Reproducibly build the bootc-aware PackageKit backend for KDE Discover.
 COPY build-packagekit-bootc.sh /tmp/build-packagekit-bootc.sh
+COPY patch-packagekit-bootc.py /tmp/patch-packagekit-bootc.py
 
 # Layer 1: Base system packages (no kernel — variant-independent)
 RUN set -e; \
@@ -51,7 +52,7 @@ RUN set -e; \
         bash /tmp/build-packagekit-bootc.sh; \
         pacman -Rns --noconfirm gcc meson ninja pkgconf; \
     fi; \
-    rm -f /tmp/build-packagekit-bootc.sh; \
+    rm -f /tmp/build-packagekit-bootc.sh /tmp/patch-packagekit-bootc.py; \
     sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime; \
