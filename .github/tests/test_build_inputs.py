@@ -40,6 +40,19 @@ class InstallerTests(unittest.TestCase):
             (d/'hooks').mkdir()
             (d/'install/plymouth').touch()
             (d/'hooks/plymouth').touch()
+            # Isolate the desktop integration checks from the host runner.
+            fixtures = {
+                'usr/lib/systemd/system/plasmalogin.service': '',
+                'usr/lib/packagekit-backend/libpk_backend_bootc.so': '',
+                'usr/share/PackageKit/helpers/bootc/bootcBackend.py': '',
+                'etc/PackageKit/PackageKit.conf': 'DefaultBackend=bootc\\n',
+                'etc/sudoers.d/10-wheel': '%wheel ALL=(ALL:ALL) ALL\\n',
+                'etc/pam.d/system-login': 'session required pam_mkhomedir.so skel=/etc/skel umask=0077\\n',
+            }
+            for relative, content in fixtures.items():
+                target = d/relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content)
             mock=d/'pacman'
             mock.write_text('''#!/bin/bash
 printf '%s\\n' "$*" >> "'''+str(d/'calls')+'''"
@@ -52,7 +65,19 @@ case "$1" in
 esac
 ''')
             mock.chmod(0o755)
-            script=(ROOT/'install-packages.sh').read_text().replace('/usr/bin/pacman',str(mock)).replace('/tmp/aur-packages',str(d/'archives')).replace('/usr/lib/initcpio',str(d))
+            script=(ROOT/'install-packages.sh').read_text()
+            for source, target in {
+                '/usr/bin/pacman': str(mock),
+                '/tmp/aur-packages': str(d/'archives'),
+                '/usr/lib/initcpio': str(d),
+                '/usr/lib/systemd/system': str(d/'usr/lib/systemd/system'),
+                '/usr/lib/packagekit-backend': str(d/'usr/lib/packagekit-backend'),
+                '/usr/share/PackageKit': str(d/'usr/share/PackageKit'),
+                '/etc/PackageKit': str(d/'etc/PackageKit'),
+                '/etc/sudoers.d': str(d/'etc/sudoers.d'),
+                '/etc/pam.d': str(d/'etc/pam.d'),
+            }.items():
+                script=script.replace(source, target)
             result=subprocess.run(['bash','-c',script],capture_output=True,text=True)
             return result,(d/'calls').read_text()
     def test_routes_official_and_local_and_skips_debug_headers(self):
