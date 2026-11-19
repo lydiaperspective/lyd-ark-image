@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile == 'both' && '["desktop","server"]' || format('["{0}"]', inputs.profile)) }}
+        profile: ${{ fromJSON(github.event_name == 'push' && '["desktop","server"]' || (inputs.profile == 'both' && '["desktop","server"]' || format('["{0}"]', inputs.profile))) }}
 
     steps:
       - name: Check out repository
