@@ -294,6 +294,66 @@ RUN set -e; \
         pacman -Scc --noconfirm; \
     fi
 
+# Layer 12c: Wicca Plymouth theme for desktop images. Convert the artwork to
+# PNG because Plymouth's script Image() loader uses PNG assets.
+RUN set -e; \
+    if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
+        pacman -S --noconfirm librsvg; \
+        git clone --quiet https://github.com/lydiaperspective/lyd-ark-themes.git /tmp/lyd-ark-themes; \
+        git -C /tmp/lyd-ark-themes checkout --quiet 684a773c3af95c0e42cc814e64b4018a033aaa6b; \
+        install -d /usr/share/plymouth/themes/lyd-ark-wicca; \
+        cp -a /tmp/lyd-ark-themes/themes/wicca/plymouth/. /usr/share/plymouth/themes/lyd-ark-wicca/; \
+        for asset in /usr/share/plymouth/themes/lyd-ark-wicca/*.svg; do \
+            rsvg-convert "$asset" > "${asset%.svg}.png"; \
+        done; \
+        rm /usr/share/plymouth/themes/lyd-ark-wicca/*.svg; \
+        plymouth-set-default-theme lyd-ark-wicca; \
+        test -s /usr/share/plymouth/themes/lyd-ark-wicca/lyd-ark-wicca.script; \
+        test -s /etc/plymouth/plymouthd.conf; \
+        grep -q '^Theme=lyd-ark-wiccaRUN set -e; \
+    sed -i 's/^MODULES=.*/MODULES=(btrfs vfat ext4 xfs erofs overlay loop)/g' /etc/mkinitcpio.conf && \
+    sed -i 's/^HOOKS=.*/HOOKS=(base systemd microcode modconf kms keyboard sd-vconsole block sd-encrypt plymouth ostree filesystems fsck)/g' /etc/mkinitcpio.conf && \
+    mkinitcpio -P && \
+    KVER=$(ls -1 /usr/lib/modules | grep -v 'extramodules' | head -n 1) && \
+    IMG=$(ls -1 /boot/initramfs-*.img | grep -v 'fallback' | head -n 1) && \
+    cp $IMG /usr/lib/modules/$KVER/initramfs.img && \
+    rm -rf /boot/* /var/lib/pacman/sync/* /var/log/* /tmp/* /usr/share/doc/* /usr/share/man/* /usr/share/info/*
+
+# Layer 14: Remove pacman + cleanup unwanted desktop entries
+RUN rm -rf \
+        /usr/bin/pacman* \
+        /usr/bin/makepkg* \
+        /usr/bin/repo-add \
+        /usr/bin/repo-elephant \
+        /usr/bin/repo-remove \
+        /usr/bin/testpkg \
+        /usr/bin/vercmp \
+        /usr/lib/libalpm.so* \
+        /usr/include/alpm* \
+        /usr/lib/pkgconfig/libalpm.pc \
+        /usr/lib/systemd/system/sockets.target.wants/dirmngr@etc-pacman.d-gnupg.socket \
+        /usr/lib/systemd/system/sockets.target.wants/gpg-agent*@etc-pacman.d-gnupg.socket \
+        /usr/lib/systemd/system/sockets.target.wants/keyboxd@etc-pacman.d-gnupg.socket \
+        /usr/share/bash-completion/completions/pacman* \
+        /usr/share/bash-completion/completions/makepkg* \
+        /usr/share/zsh/site-functions/_pacman* \
+        /usr/share/man/man8/pacman* \
+        /usr/share/man/man8/makepkg* \
+        /usr/share/man/man8/repo-* \
+        /usr/share/man/man8/vercmp* \
+        /usr/share/man/man8/testpkg* \
+        /etc/pacman.conf \
+        /etc/pacman.d/ \
+        /var/lib/pacman/ && \
+    rm -f /usr/share/applications/{bssh,bvnc,avahi-discover,qv4l2,qvidcap,stoken-gui,stoken-gui-small,org.gnome.Extensions,org.gnome.TextEditor,lstopo,hwloc-ls,org.gnome.Logs,ibus,ibus-setup,ibus-wayland,scrcpy,scrcpy-console,veracrypt,timeshift,timeshift-gtk,org.freedesktop.MalcontentControl,nvtop}.desktop 2>/dev/null || true
+
+# Runtime state is recreated at boot; keep builder-injected mounts intact.
+COPY clean-runtime.py /usr/lib/ark/clean-runtime.py
+RUN python /usr/lib/ark/clean-runtime.py
+ /etc/plymouth/plymouthd.conf; \
+        rm -rf /tmp/lyd-ark-themes; \
+    fi
+
 # Layer 13: mkinitcpio + initramfs cleanup
 RUN set -e; \
     sed -i 's/^MODULES=.*/MODULES=(btrfs vfat ext4 xfs erofs overlay loop)/g' /etc/mkinitcpio.conf && \
