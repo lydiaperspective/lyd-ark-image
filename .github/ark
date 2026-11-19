@@ -139,6 +139,18 @@ distrobox_action() {
     esac
 }
 
+run_feature() {
+    local action="$1"
+    local feature="$2"
+    case "$feature" in
+        steam) steam_action "$action" ;;
+        tailscale) tailscale_action "$action" ;;
+        podman) podman_action "$action" ;;
+        distrobox) distrobox_action "$action" ;;
+        *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
+    esac
+}
+
 feature_action() {
     local action="$1"
     local feature="${2:-}"
@@ -156,7 +168,7 @@ EOF
             ;;
         status)
             if [[ -n "$feature" ]]; then
-                feature_action status "$feature"
+                run_feature status "$feature"
             else
                 steam_action status
                 tailscale_action status
@@ -166,7 +178,7 @@ EOF
             ;;
         enable|disable)
             [[ -n "$feature" ]] || { echo "Specify a feature." >&2; usage; exit 2; }
-            feature_action "$action" "$feature"
+            run_feature "$action" "$feature"
             ;;
         *)
             usage
