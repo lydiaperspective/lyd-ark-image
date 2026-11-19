@@ -67,7 +67,7 @@ COPY ark-initial-account.service /usr/lib/systemd/system/ark-initial-account.ser
 RUN chmod 0755 /usr/libexec/ark/create-initial-account && \
     systemctl enable ark-initial-account.service && \
     mkdir -p /usr/lib/systemd/system/plasmalogin.service.d && \
-    printf '[Unit]\\nRequires=ark-initial-account.service\\nAfter=ark-initial-account.service\\n' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf
+    printf '%s\n' '[Unit]' 'Requires=ark-initial-account.service' 'After=ark-initial-account.service' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf
 
 # Layer 2: OSTree sysroot + systemd services
 RUN set -e; \
