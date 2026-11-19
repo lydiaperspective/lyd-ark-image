@@ -64,4 +64,5 @@ else
     test -x /usr/share/PackageKit/helpers/bootc/bootcBackend.py
     grep -Eq '^DefaultBackend=bootc$' /etc/PackageKit/PackageKit.conf
     grep -q '^%wheel ALL=(ALL:ALL) ALL$' /etc/sudoers.d/10-wheel
+    grep -q 'pam_mkhomedir.so' /etc/pam.d/system-login
 fi
