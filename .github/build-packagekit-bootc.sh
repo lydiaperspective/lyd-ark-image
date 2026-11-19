@@ -34,6 +34,12 @@ meson install -C "$BUILD_DIR"
 
 test -s "$BACKEND"
 test -x "$HELPER"
+
+DISCOVER_VERSION="$(pacman -Q discover | awk '{print $2}')"
+if [[ "$(vercmp "$DISCOVER_VERSION" "6.8.0")" -lt 0 ]]; then
+    echo "Discover $DISCOVER_VERSION predates the upstream bootc/OSTree PackageKit fix; refusing to ship an incompatible backend." >&2
+    exit 1
+fi
 ldd "$BACKEND" | tee "$BUILD_ROOT/backend-dependencies.txt"
 if grep -q "not found" "$BUILD_ROOT/backend-dependencies.txt"; then
     echo "PackageKit-bootc backend has unresolved shared-library dependencies." >&2
@@ -65,7 +71,7 @@ elif "[Daemon]" in lines:
 else:
     lines.extend(["", "[Daemon]", "DefaultBackend=bootc"])
 
-path.write_text("\\n".join(lines) + "\\n")
+path.write_text("\n".join(lines) + "\n")
 PY
 
 grep -Eq '^DefaultBackend=bootc$' "$CONFIG"
