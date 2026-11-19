@@ -87,7 +87,7 @@ jobs:
           else
             PODMAN=(sudo podman)
           fi
-          printf '%s' "$GH_TOKEN" | "\${PODMAN[@]}" login ghcr.io -u "${{ github.actor }}" --password-stdin
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build and publish userspace base
         env:
@@ -108,14 +108,14 @@ jobs:
             TAG=base-desktop
           fi
 
-          "\${PODMAN[@]}" build --target base \
+          "${PODMAN[@]}" build --target base \
             --build-arg VARIANT="$VARIANT" \
             --build-arg CARRIER_SHA="$CARRIER_SHA" \
             --build-arg CARRIER_URL="$CARRIER_URL" \
             -t ghcr.io/${{ github.repository }}:"$TAG" \
             -f .github/Containerfile .github/
 
-          "\${PODMAN[@]}" push ghcr.io/${{ github.repository }}:"$TAG"
+          "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:"$TAG"
 
       - name: Report published base
         run: |
