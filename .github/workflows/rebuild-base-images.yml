@@ -26,7 +26,7 @@ on:
 # Share the release lock with the full pipeline so both workflows cannot
 # publish the same base tags at the same time.
 concurrency:
-  group: ark-payload-release
+  group: lyd-ark-image-release
   cancel-in-progress: false
 
 jobs:
