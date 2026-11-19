@@ -15,9 +15,12 @@ RUN set -e; \
     pacman -Syu --noconfirm; \
     pacman -S --noconfirm \
         base glibc linux-firmware networkmanager mkinitcpio \
-        gnome-shell gnome-control-center gnome-keyring gnome-session gnome-settings-daemon \
-        nautilus xdg-desktop-portal-gnome xdg-user-dirs-gtk gnome-console gdm gnome-software \
-        flatpak gnome-initial-setup \
+        plasma-desktop plasma-workspace plasma-wayland-session plasma-nm plasma-pa \
+        plasma-systemmonitor powerdevil systemsettings sddm konsole dolphin ark okular kate \
+        spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
+        xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
+        flatpak \
+        tuned tuned-ppd \
         webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
         util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
         btrfs-progs snapper snap-pac podman composefs ibus iso-codes shadow sudo git nano zsh fish python rsync acl libnotify slirp4netns passt fuse-overlayfs catatonit; \
@@ -29,12 +32,17 @@ RUN set -e; \
     pacman -Scc --noconfirm
 
 # Layer 2: OSTree sysroot + systemd services
-RUN systemctl enable gdm NetworkManager && \
+RUN systemctl enable sddm NetworkManager tuned tuned-ppd && \
     systemctl mask systemd-firstboot.service && \
     mkdir -p /etc/ostree && \
     mkdir -p /sysroot /sysroot/ostree /.snapshots && \
     ln -sfn sysroot/ostree /ostree && \
     glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+# KDE Plasma defaults; no automatic login on installed systems.
+RUN mkdir -p /etc/sddm.conf.d && \
+    printf '[Autologin]\nUser=\nSession=\n' > /etc/sddm.conf.d/ark-no-autologin.conf && \
+    rm -f /etc/sddm.conf.d/autologin.conf /etc/sddm.conf.d/ark-autologin.conf
 
 # Layer 3: bootupd + home/root symlinks
 RUN [ -f /usr/libexec/bootupd ] && chmod +x /usr/libexec/bootupd /usr/bin/bootupctl || true; \
