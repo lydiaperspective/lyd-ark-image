@@ -52,9 +52,18 @@ if [[ "${VARIANT:-}" == "intel3-server-lts" ]]; then
         echo "Server image unexpectedly contains the desktop PackageKit bootc backend." >&2
         exit 1
     fi
+    if /usr/bin/pacman -Qq | grep -qx plasma-login-manager; then
+        echo "Server image unexpectedly contains a graphical login manager." >&2
+        exit 1
+    fi
 else
-    /usr/bin/pacman -Q discover packagekit packagekit-qt6
+    /usr/bin/pacman -Q discover packagekit packagekit-qt6 plasma-login-manager
+    ! /usr/bin/pacman -Qq | grep -qx sddm
+    test -s /usr/lib/systemd/system/plasmalogin.service
     test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
     test -x /usr/share/PackageKit/helpers/bootc/bootcBackend.py
-    grep -Eq '^DefaultBackend=bootc$' /etc/PackageKit/PackageKit.conf
+    grep -Eq '^DefaultBackend=bootc
+ /etc/PackageKit/PackageKit.conf
+    grep -q '^%wheel ALL=(ALL:ALL) ALL
+ /etc/sudoers.d/10-wheel
 fi
