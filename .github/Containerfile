@@ -74,6 +74,8 @@ RUN set -e; \
     printf '%s\n' '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel; \
     chmod 0440 /etc/sudoers.d/10-wheel; \
     visudo -cf /etc/sudoers; \
+    grep -q 'pam_mkhomedir.so' /etc/pam.d/system-login || \
+        printf 'session required pam_mkhomedir.so skel=/etc/skel umask=0077\\n' >> /etc/pam.d/system-login; \
     systemctl mask systemd-firstboot.service; \
     mkdir -p /etc/ostree; \
     mkdir -p /sysroot /sysroot/ostree /.snapshots; \
