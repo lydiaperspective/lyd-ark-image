@@ -181,6 +181,8 @@ RUN --mount=type=bind,source=aur-packages,target=/tmp/aur-packages \
         pacman-key --populate cachyos; \
         sed -i '/SigLevel = Never/d' /etc/pacman.conf; \
         pacman -Sy --noconfirm; \
+        # CachyOS LTO headers require pahole >= 1:1.32-2; Arch extra may lag behind. \
+        pacman -S --noconfirm cachyos/pahole; \
         pacman -Syu --noconfirm $CACHY_KERNEL ${CACHY_KERNEL}-headers; \
     else \
         if [[ "$VARIANT" == *"-zen"* ]]; then KERNEL="linux-zen"; fi; \
