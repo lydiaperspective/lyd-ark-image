@@ -2,7 +2,6 @@
 Description=Lyd Ark bootc image update check
 Wants=network-online.target
 After=network-online.target
-ConditionPathExists=/run/ostree-booted
 
 [Service]
 Type=oneshot
