@@ -10,6 +10,9 @@ ARG VARIANT=ark
 LABEL ostree.bootable="true"
 LABEL containers.bootc="1"
 
+# Reproducibly build the bootc-aware PackageKit backend for KDE Discover.
+COPY build-packagekit-bootc.sh /tmp/build-packagekit-bootc.sh
+
 # Layer 1: Base system packages (no kernel — variant-independent)
 RUN set -e; \
     sed -i '/NoExtract/d' /etc/pacman.conf && \
@@ -33,7 +36,8 @@ RUN set -e; \
             plasma-systemmonitor powerdevil systemsettings sddm konsole dolphin ark okular kate \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
-            flatpak \
+            flatpak discover packagekit packagekit-qt6 \
+            gcc meson ninja pkgconf \
             tuned tuned-ppd \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
             util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
@@ -43,7 +47,11 @@ RUN set -e; \
             slirp4netns passt fuse-overlayfs catatonit; \
         flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; \
         flatpak install --system --noninteractive --assumeyes flathub net.waterfox.waterfox; \
+        chmod 0755 /tmp/build-packagekit-bootc.sh; \
+        bash /tmp/build-packagekit-bootc.sh; \
+        pacman -Rns --noconfirm gcc meson ninja pkgconf; \
     fi; \
+    rm -f /tmp/build-packagekit-bootc.sh; \
     sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime; \
