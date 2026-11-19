@@ -12,12 +12,12 @@ Usage:
   ark feature status [FEATURE]
   ark feature enable FEATURE
   ark feature disable FEATURE
-  ark steam|tailscale|podman|distrobox status|enable|disable
+  ark steam|tailscale|podman|distrobox|github-runner status|enable|disable
 
 Manageable features:
   steam       Install or remove Steam as a system Flatpak.
   tailscale   Enable or disable the Tailscale system service.
-  podman      Enable or disable the rootless Podman API socket.
+  podman      Enable or disable the rootless Podman API socket.\n  github-runner  Register and run a repository-scoped self-hosted runner.
 
 Included base capabilities:
   distrobox   Already included in Ark desktop images; no daemon to enable.
@@ -121,6 +121,101 @@ podman_action() {
     esac
 }
 
+github_runner_action() {
+    local action="$1"
+    local runner_dir="$HOME/.local/opt/ark-github-runner"
+    local unit_dir="$HOME/.config/systemd/user"
+    local unit_file="$unit_dir/ark-github-runner.service"
+
+    require_command systemctl
+    case "$action" in
+        status)
+            if [[ -f "$runner_dir/.runner" ]]; then
+                echo "GitHub Actions runner: configured"
+                systemctl --user status ark-github-runner.service --no-pager || true
+            else
+                echo "GitHub Actions runner: not configured"
+            fi
+            ;;
+        enable)
+            if [[ -f "$runner_dir/.runner" ]]; then
+                systemctl --user enable --now ark-github-runner.service
+                echo "GitHub Actions runner started."
+                return
+            fi
+            require_command curl
+            require_command jq
+            require_command tar
+            [[ "$(uname -m)" == "x86_64" ]] || {
+                echo "The initial Ark runner setup supports x86_64 hosts only." >&2
+                exit 2
+            }
+            local repo_url token asset_url runner_name
+            read -r -p "GitHub repository URL (https://github.com/OWNER/REPO): " repo_url
+            [[ "$repo_url" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/?$ ]] || {
+                echo "Enter a valid GitHub repository URL." >&2
+                exit 2
+            }
+            read -r -s -p "Short-lived runner registration token: " token
+            echo
+            [[ -n "$token" ]] || { echo "A registration token is required." >&2; exit 2; }
+            asset_url=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest |
+                jq -er '[.assets[] | select(.name | test("^actions-runner-linux-x64-[0-9.]+\\.tar\\.gz$"))][0].browser_download_url')
+            mkdir -p "$runner_dir" "$unit_dir"
+            curl -fL --retry 3 "$asset_url" -o "$runner_dir/runner.tar.gz"
+            tar -xzf "$runner_dir/runner.tar.gz" -C "$runner_dir"
+            rm -f "$runner_dir/runner.tar.gz"
+            runner_name="ark-builder-$(hostname -s)"
+            (
+                cd "$runner_dir"
+                ./config.sh --unattended --url "$repo_url" --token "$token" \
+                    --name "$runner_name" --labels "ark-builder" --work "_work" --replace
+            )
+            unset token
+            chmod 600 "$runner_dir"/.credentials* 2>/dev/null || true
+            cat > "$unit_file" <<'EOF'
+[Unit]
+Description=Ark GitHub Actions Self-hosted Runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/.local/opt/ark-github-runner
+ExecStart=%h/.local/opt/ark-github-runner/run.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+            systemctl --user daemon-reload
+            systemctl --user enable --now ark-github-runner.service
+            if command -v loginctl >/dev/null 2>&1; then
+                echo "Enabling user lingering so the runner can start without an interactive login."
+                as_root loginctl enable-linger "$USER"
+            fi
+            echo "Runner registered with label ark-builder."
+            echo "Only use this runner for trusted workflows from repositories you control."
+            ;;
+        disable)
+            systemctl --user disable --now ark-github-runner.service
+            echo "Runner stopped. Its registration is retained."
+            ;;
+        unregister)
+            [[ -f "$runner_dir/.runner" ]] || { echo "Runner is not configured."; return; }
+            read -r -s -p "Short-lived runner removal token: " token
+            echo
+            [[ -n "$token" ]] || { echo "A removal token is required." >&2; exit 2; }
+            systemctl --user disable --now ark-github-runner.service || true
+            (cd "$runner_dir" && ./config.sh remove --unattended --token "$token")
+            unset token
+            rm -f "$unit_file"
+            systemctl --user daemon-reload
+            echo "Runner unregistered. Downloaded runner files were retained."
+            ;;
+    esac
+}
+
 distrobox_action() {
     require_command distrobox
     case "$1" in
@@ -145,7 +240,7 @@ run_feature() {
     case "$feature" in
         steam) steam_action "$action" ;;
         tailscale) tailscale_action "$action" ;;
-        podman) podman_action "$action" ;;
+        podman) podman_action "$action" ;;\n    github-runner) github_runner_action "$action" ;;\n        github-runner) github_runner_action "$action" ;;
         distrobox) distrobox_action "$action" ;;
         *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
     esac
@@ -176,7 +271,7 @@ EOF
                 distrobox_action status
             fi
             ;;
-        enable|disable)
+        enable|disable|unregister)
             [[ -n "$feature" ]] || { echo "Specify a feature." >&2; usage; exit 2; }
             run_feature "$action" "$feature"
             ;;
@@ -207,7 +302,7 @@ fi
 feature="$1"
 action="${2:-status}"
 case "$action" in
-    status|enable|disable) ;;
+    status|enable|disable|unregister) ;;
     *) usage; exit 2 ;;
 esac
 
