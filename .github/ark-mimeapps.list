@@ -1,0 +1,12 @@
+[Default Applications]
+x-scheme-handler/http=net.waterfox.waterfox.desktop
+x-scheme-handler/https=net.waterfox.waterfox.desktop
+x-scheme-handler/ftp=net.waterfox.waterfox.desktop
+text/html=net.waterfox.waterfox.desktop
+application/xhtml+xml=net.waterfox.waterfox.desktop
+
+[Added Associations]
+x-scheme-handler/http=net.waterfox.waterfox.desktop
+x-scheme-handler/https=net.waterfox.waterfox.desktop
+text/html=net.waterfox.waterfox.desktop
+application/xhtml+xml=net.waterfox.waterfox.desktop
