@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically check for Lyd Ark bootc image updates
+
+[Timer]
+OnBootSec=15m
+OnUnitInactiveSec=6h
+RandomizedDelaySec=30m
+Persistent=true
+Unit=ark-bootc-update.service
+
+[Install]
+WantedBy=timers.target
