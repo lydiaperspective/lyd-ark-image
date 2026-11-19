@@ -1,0 +1,126 @@
+name: Rebuild Base Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Which userspace base image to rebuild"
+        type: choice
+        options:
+          - both
+          - desktop
+          - server
+        default: both
+        required: true
+      runner:
+        description: "Where to run the image build"
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted
+        default: github-hosted
+        required: true
+
+# Share the release lock with the full pipeline so both workflows cannot
+# publish the same base tags at the same time.
+concurrency:
+  group: ark-payload-release
+  cancel-in-progress: false
+
+jobs:
+  build-base:
+    name: Build \${{ matrix.profile }} base
+    runs-on: \${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: \${{ fromJSON(inputs.profile == 'both' && '["desktop","server"]' || format('["{0}"]', inputs.profile)) }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Free disk space
+        if: inputs.runner != 'self-hosted'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Prepare Podman
+        run: |
+          if [ "\${{ inputs.runner }}" = "self-hosted" ]; then
+            command -v podman >/dev/null || {
+              echo "Install rootless Podman on the self-hosted runner first." >&2
+              exit 1
+            }
+          else
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+
+      - name: Get current Carrier release
+        id: carrier
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          DATA=$(gh api repos/zamkara/carrier-pkg/releases/latest)
+          ID=$(printf '%s' "$DATA" | jq -er '.id')
+          URL=$(printf '%s' "$DATA" | jq -er '.assets[] | select(.name == "carrier") | .browser_download_url')
+          echo "sha=$ID" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          if [ "\${{ inputs.runner }}" = "self-hosted" ]; then
+            PODMAN=(podman)
+          else
+            PODMAN=(sudo podman)
+          fi
+          printf '%s' "$GH_TOKEN" | "\${PODMAN[@]}" login ghcr.io -u "\${{ github.actor }}" --password-stdin
+
+      - name: Build and publish userspace base
+        env:
+          CARRIER_SHA: \${{ steps.carrier.outputs.sha }}
+          CARRIER_URL: \${{ steps.carrier.outputs.url }}
+        run: |
+          if [ "\${{ inputs.runner }}" = "self-hosted" ]; then
+            PODMAN=(podman)
+          else
+            PODMAN=(sudo podman)
+          fi
+
+          if [ "\${{ matrix.profile }}" = "server" ]; then
+            VARIANT=intel3-server-lts
+            TAG=base-server
+          else
+            VARIANT=intel-modern
+            TAG=base-desktop
+          fi
+
+          "\${PODMAN[@]}" build --target base \
+            --build-arg VARIANT="$VARIANT" \
+            --build-arg CARRIER_SHA="$CARRIER_SHA" \
+            --build-arg CARRIER_URL="$CARRIER_URL" \
+            -t ghcr.io/\${{ github.repository }}:"$TAG" \
+            -f .github/Containerfile .github/
+
+          "\${PODMAN[@]}" push ghcr.io/\${{ github.repository }}:"$TAG"
+
+      - name: Report published base
+        run: |
+          if [ "\${{ matrix.profile }}" = "server" ]; then
+            echo "Published ghcr.io/\${{ github.repository }}:base-server"
+          else
+            echo "Published ghcr.io/\${{ github.repository }}:base-desktop"
+          fi
