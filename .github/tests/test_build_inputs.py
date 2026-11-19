@@ -42,9 +42,9 @@ class InstallerTests(unittest.TestCase):
             (d/'hooks/plymouth').touch()
             # Isolate the desktop integration checks from the host runner.
             fixtures = {
-                'usr/lib/systemd/system/plasmalogin.service': '',
-                'usr/lib/packagekit-backend/libpk_backend_bootc.so': '',
-                'usr/share/PackageKit/helpers/bootc/bootcBackend.py': '',
+                'usr/lib/systemd/system/plasmalogin.service': '[Service]\\n',
+                'usr/lib/packagekit-backend/libpk_backend_bootc.so': 'fixture\\n',
+                'usr/share/PackageKit/helpers/bootc/bootcBackend.py': '#!/usr/bin/env python3\\n',
                 'etc/PackageKit/PackageKit.conf': 'DefaultBackend=bootc\\n',
                 'etc/sudoers.d/10-wheel': '%wheel ALL=(ALL:ALL) ALL\\n',
                 'etc/pam.d/system-login': 'session required pam_mkhomedir.so skel=/etc/skel umask=0077\\n',
@@ -53,6 +53,8 @@ class InstallerTests(unittest.TestCase):
                 target = d/relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content)
+                if relative.endswith('bootcBackend.py'):
+                    target.chmod(0o755)
             mock=d/'pacman'
             mock.write_text('''#!/bin/bash
 printf '%s\\n' "$*" >> "'''+str(d/'calls')+'''"
