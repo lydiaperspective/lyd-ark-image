@@ -32,7 +32,9 @@ database for ordinary package installation.
 
 In Discover, the **Updates** page is the graphical path for checking and
 staging a Lyd Ark image update. Applying an update stages the next bootc
-deployment; reboot to activate it. Flatpak application updates remain
+deployment; reboot to activate it. If the background update timer has already
+staged the image, the Lyd Ark helper detects that staged deployment and keeps
+it visible in Discover as ready to reboot. Flatpak application updates remain
 available through Discover's Flatpak backend. The headless server image does
 not include Discover or PackageKit.
 
