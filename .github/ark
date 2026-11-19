@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_ID_STEAM="com.valvesoftware.Steam"
+
+usage() {
+    cat <<'EOF'
+Ark feature manager
+
+Usage:
+  ark feature list
+  ark feature status [FEATURE]
+  ark feature enable FEATURE
+  ark feature disable FEATURE
+  ark steam|tailscale|podman|distrobox status|enable|disable
+
+Manageable features:
+  steam       Install or remove Steam as a system Flatpak.
+  tailscale   Enable or disable the Tailscale system service.
+  podman      Enable or disable the rootless Podman API socket.
+
+Included base capabilities:
+  distrobox   Already included in Ark desktop images; no daemon to enable.
+
+Examples:
+  ark steam enable
+  ark tailscale enable
+  ark podman enable
+EOF
+}
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || {
+        echo "Required command not found: $1" >&2
+        exit 1
+    }
+}
+
+as_root() {
+    if [[ $EUID -eq 0 ]]; then
+        "$@"
+    else
+        require_command sudo
+        sudo "$@"
+    fi
+}
+
+steam_action() {
+    require_command flatpak
+    case "$1" in
+        enable)
+            echo "Installing Steam system-wide from Flathub..."
+            as_root flatpak install --system --noninteractive --assumeyes flathub "$APP_ID_STEAM"
+            ;;
+        disable)
+            if flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
+                echo "Removing the Steam application. User data is not deliberately deleted."
+                as_root flatpak uninstall --system --noninteractive --assumeyes "$APP_ID_STEAM"
+            else
+                echo "Steam is not installed."
+            fi
+            ;;
+        status)
+            if flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
+                echo "Steam: installed (system Flatpak)"
+            else
+                echo "Steam: not installed"
+            fi
+            ;;
+    esac
+}
+
+tailscale_action() {
+    require_command systemctl
+    case "$1" in
+        enable)
+            require_command tailscale
+            echo "Starting Tailscale. You may be asked to authenticate with your tailnet."
+            as_root systemctl enable --now tailscaled.service
+            if ! as_root tailscale status >/dev/null 2>&1; then
+                as_root tailscale up
+            else
+                as_root tailscale status
+            fi
+            ;;
+        disable)
+            if command -v tailscale >/dev/null 2>&1; then
+                as_root tailscale down || true
+            fi
+            as_root systemctl disable --now tailscaled.service
+            ;;
+        status)
+            if systemctl is-active --quiet tailscaled.service; then
+                echo "Tailscale service: active"
+                as_root tailscale status || true
+            else
+                echo "Tailscale service: inactive"
+            fi
+            ;;
+    esac
+}
+
+podman_action() {
+    require_command podman
+    require_command systemctl
+    case "$1" in
+        enable)
+            echo "Enabling the rootless Podman API socket for the current user..."
+            systemctl --user enable --now podman.socket
+            ;;
+        disable)
+            systemctl --user disable --now podman.socket
+            ;;
+        status)
+            if systemctl --user is-active --quiet podman.socket; then
+                echo "Podman API socket: active"
+            else
+                echo "Podman API socket: inactive (Podman CLI remains available)"
+            fi
+            ;;
+    esac
+}
+
+distrobox_action() {
+    require_command distrobox
+    case "$1" in
+        status)
+            echo "Distrobox: installed in the Ark desktop base image"
+            echo "Distrobox is a user command, not a background service."
+            ;;
+        enable)
+            echo "Distrobox is already included and ready to use."
+            ;;
+        disable)
+            echo "Distrobox is part of the immutable base image and cannot be removed independently."
+            echo "It can be omitted from a future custom image build."
+            exit 2
+            ;;
+    esac
+}
+
+feature_action() {
+    local action="$1"
+    local feature="${2:-}"
+    case "$action" in
+        list)
+            cat <<'EOF'
+Manageable:
+  steam       Optional system-wide Flatpak
+  tailscale   Optional system service
+  podman      Optional rootless API socket
+
+Included in the desktop base:
+  distrobox   Always available; no service toggle
+EOF
+            ;;
+        status)
+            if [[ -n "$feature" ]]; then
+                feature_action status "$feature"
+            else
+                steam_action status
+                tailscale_action status
+                podman_action status
+                distrobox_action status
+            fi
+            ;;
+        enable|disable)
+            [[ -n "$feature" ]] || { echo "Specify a feature." >&2; usage; exit 2; }
+            feature_action "$action" "$feature"
+            ;;
+        *)
+            usage
+            exit 2
+            ;;
+    esac
+}
+
+if [[ $# -eq 0 ]]; then
+    usage
+    exit 0
+fi
+
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    usage
+    exit 0
+fi
+
+if [[ "$1" == "feature" ]]; then
+    shift
+    [[ $# -ge 1 ]] || { usage; exit 2; }
+    feature_action "$@"
+    exit $?
+fi
+
+feature="$1"
+action="${2:-status}"
+case "$action" in
+    status|enable|disable) ;;
+    *) usage; exit 2 ;;
+esac
+
+case "$feature" in
+    steam) steam_action "$action" ;;
+    tailscale) tailscale_action "$action" ;;
+    podman) podman_action "$action" ;;
+    distrobox) distrobox_action "$action" ;;
+    *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
+esac
