@@ -211,16 +211,24 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+      - name: Prepare Podman
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner first." >&2; exit 1; }
+          else
+            sudo apt-get update && sudo apt-get install -y podman
+          fi
       - name: Build agent development environment
         run: |
-          sudo apt-get update && sudo apt-get install -y podman
-          sudo podman build -t ghcr.io/${{ github.repository }}:agents -f .github/agents/Containerfile .github/agents
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          "${PODMAN[@]}" build -t ghcr.io/${{ github.repository }}:agents -f .github/agents/Containerfile .github/agents
       - name: Publish agent development environment
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          printf '%s' "$GH_TOKEN" | sudo podman login ghcr.io -u '${{ github.actor }}' --password-stdin
-          sudo podman push ghcr.io/${{ github.repository }}:agents
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io -u '${{ github.actor }}' --password-stdin
+          "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:agents
 
   build-payload:
     needs: [check-digest, build-agent-environment]
@@ -252,6 +260,7 @@ jobs:
           if [ "${{ inputs.runner }}" = "self-hosted" ]; then
             command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner first." >&2; exit 1; }
             command -v wget >/dev/null || { echo "Install wget on the self-hosted runner first." >&2; exit 1; }
+            command -v curl >/dev/null || { echo "Install curl on the self-hosted runner first." >&2; exit 1; }
           else
             sudo apt-get update && sudo apt-get install -y podman wget
           fi
@@ -272,7 +281,8 @@ jobs:
           find .github/aur-packages -maxdepth 1 -type f -name 'alga*.pkg.tar.zst' -delete
           curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$PACKAGE_URL" -o .github/aur-packages/alga.pkg.tar.zst
           test -s .github/aur-packages/alga.pkg.tar.zst
-          ALGA_META=$(sudo podman run --rm -v "$PWD/.github/aur-packages:/packages:ro" docker.io/archlinux:latest pacman -Qp /packages/alga.pkg.tar.zst)
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then PODMAN=(podman); else PODMAN=(sudo podman); fi
+          ALGA_META=$("${PODMAN[@]}" run --rm -v "$PWD/.github/aur-packages:/packages:ro" docker.io/archlinux:latest pacman -Qp /packages/alga.pkg.tar.zst)
           [[ "$ALGA_META" == alga\ * ]] || { echo "Unexpected installer package: $ALGA_META" >&2; exit 1; }
           echo "Verified Alga installer from lyd-agka release ID $ALGA_RELEASE_ID: $ALGA_META"
           echo "Release asset: $PACKAGE_URL"
