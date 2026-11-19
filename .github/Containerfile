@@ -20,7 +20,9 @@ RUN set -e; \
             udisks2 pcp \
             tuned tuned-ppd \
             util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
-            btrfs-progs snapper snap-pac podman composefs shadow sudo git nano zsh fish python rsync acl \
+            btrfs-progs snapper snap-pac podman podman-compose distrobox composefs shadow sudo git nano zsh fish python rsync acl \
+            qemu-full libvirt dnsmasq iptables-nft edk2-ovmf swtpm \
+            fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
             slirp4netns passt fuse-overlayfs catatonit; \
     else \
         pacman -S --noconfirm \
@@ -33,7 +35,10 @@ RUN set -e; \
             tuned tuned-ppd \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
             util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
-            btrfs-progs snapper snap-pac podman composefs ibus iso-codes shadow sudo git nano zsh fish python rsync acl libnotify slirp4netns passt fuse-overlayfs catatonit; \
+            btrfs-progs snapper snap-pac podman podman-compose distrobox composefs ibus iso-codes shadow sudo git nano zsh fish python rsync acl libnotify \
+            qemu-full libvirt virt-manager dnsmasq iptables-nft edk2-ovmf swtpm \
+            fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
+            slirp4netns passt fuse-overlayfs catatonit; \
     fi; \
     sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
@@ -45,11 +50,11 @@ RUN set -e; \
 # Layer 2: OSTree sysroot + systemd services
 RUN set -e; \
     if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
-        systemctl enable NetworkManager tuned tuned-ppd sshd cockpit.socket; \
+        systemctl enable NetworkManager tuned tuned-ppd sshd cockpit.socket libvirtd.service; \
         mkdir -p /etc/ssh/sshd_config.d; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
-        systemctl enable sddm NetworkManager tuned tuned-ppd; \
+        systemctl enable sddm NetworkManager tuned tuned-ppd libvirtd.service; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
     systemctl mask systemd-firstboot.service; \
