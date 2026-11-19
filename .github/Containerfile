@@ -34,7 +34,7 @@ RUN set -e; \
         pacman -S --noconfirm \
             base glibc linux-firmware networkmanager mkinitcpio tailscale \
             plasma-desktop plasma-workspace plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-icons \
-            plasma-systemmonitor powerdevil systemsettings sddm konsole dolphin ark okular kate \
+            plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
             flatpak discover packagekit packagekit-qt6 \
@@ -67,15 +67,19 @@ RUN set -e; \
         mkdir -p /etc/ssh/sshd_config.d; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
-        systemctl enable sddm NetworkManager tuned tuned-ppd libvirtd.service; \
+        systemctl enable plasmalogin NetworkManager tuned tuned-ppd libvirtd.service; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
+    mkdir -p /etc/sudoers.d; \
+    printf '%s\\n' '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel; \
+    chmod 0440 /etc/sudoers.d/10-wheel; \
+    visudo -cf /etc/sudoers; \
     systemctl mask systemd-firstboot.service; \
     mkdir -p /etc/ostree; \
     mkdir -p /sysroot /sysroot/ostree /.snapshots; \
     ln -sfn sysroot/ostree /ostree
 
-# SDDM uses its normal login prompt; no autologin configuration is installed.
+# Plasma Login Manager uses its normal login prompt; no autologin configuration is installed.
 
 # Layer 3: bootupd + home/root symlinks
 RUN [ -f /usr/libexec/bootupd ] && chmod +x /usr/libexec/bootupd /usr/bin/bootupctl || true; \
