@@ -22,6 +22,24 @@ variant tag already contains the matching userspace, kernel, and driver.
 - The previous deployment remains available for bootc rollback.
 - Alga's own self-update timer remains separate and is not the OS updater.
 
+## KDE Discover integration
+
+Desktop images include KDE Discover, Flatpak support, PackageKit, and the
+PackageKit-bootc backend. PackageKit is configured to use the bootc backend
+for system updates. Discover therefore treats the installed OS as one
+updateable image rather than exposing the immutable host's Arch package
+database for ordinary package installation.
+
+In Discover, the **Updates** page is the graphical path for checking and
+staging a Lyd Ark image update. Applying an update stages the next bootc
+deployment; reboot to activate it. Flatpak application updates remain
+available through Discover's Flatpak backend. The headless server image does
+not include Discover or PackageKit.
+
+The backend is pinned to an upstream PackageKit-bootc source revision and
+built as part of the desktop base image. The image build checks that the
+installed Discover version includes KDE's upstream OSTree compatibility fix.
+
 ## Manual commands
 
 Run as root (or through sudo):
