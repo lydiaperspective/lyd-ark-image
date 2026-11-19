@@ -1,4 +1,4 @@
-name: Build ark Payload
+name: Build Lyd Ark Image Payload
 
 on:
   schedule:
