@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+case "${1:-check}" in
+    check|update)
+        exec /usr/bin/bootc upgrade
+        ;;
+    status)
+        exec /usr/bin/bootc status
+        ;;
+    *)
+        echo "Usage: ark-os-update [check|update|status]" >&2
+        exit 2
+        ;;
+esac
