@@ -10,6 +10,9 @@ on:
       - '.github/workflows/build-payload.yml'
   schedule:
     - cron: '0 4 * * 1' # Weekly, Monday at 04:00 UTC
+  workflow_run:
+    workflows: ["Rebuild Lyd Ark Base Images"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       force:
@@ -127,6 +130,17 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "needs-build=true" >> $GITHUB_OUTPUT
             echo "reason=source-change" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            if [ "${{ github.event.workflow_run.event }}" = "push" ] && [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+              echo "needs-build=true" >> $GITHUB_OUTPUT
+              echo "reason=base-rebuild-complete" >> $GITHUB_OUTPUT
+            else
+              echo "needs-build=false" >> $GITHUB_OUTPUT
+              echo "reason=base-rebuild-not-successful-push" >> $GITHUB_OUTPUT
+            fi
             exit 0
           fi
 
