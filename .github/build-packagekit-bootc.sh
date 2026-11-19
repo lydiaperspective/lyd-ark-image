@@ -44,24 +44,28 @@ fi
 # Discover will then see the OS image as one updateable item, not host packages.
 python - "$CONFIG" <<'PY'
 from pathlib import Path
-import re
 import sys
 
 path = Path(sys.argv[1])
-text = path.read_text()
-pattern = r"(?m)^[ \\t]*#?[ \\t]*DefaultBackend=.*$"
-if re.search(pattern, text):
-    text = re.sub(pattern, "DefaultBackend=bootc", text, count=1)
-elif re.search(r"(?m)^\\[Daemon\\][ \\t]*$", text):
-    text = re.sub(
-        r"(?m)^(\\[Daemon\\][ \\t]*)$",
-        r"\\1\\nDefaultBackend=bootc",
-        text,
-        count=1,
-    )
+lines = path.read_text().splitlines()
+backend_line = None
+
+for index, line in enumerate(lines):
+    candidate = line.strip()
+    if candidate.startswith("#"):
+        candidate = candidate[1:].strip()
+    if candidate.startswith("DefaultBackend="):
+        backend_line = index
+        break
+
+if backend_line is not None:
+    lines[backend_line] = "DefaultBackend=bootc"
+elif "[Daemon]" in lines:
+    lines.insert(lines.index("[Daemon]") + 1, "DefaultBackend=bootc")
 else:
-    text = text.rstrip() + "\\n\\n[Daemon]\\nDefaultBackend=bootc\\n"
-path.write_text(text)
+    lines.extend(["", "[Daemon]", "DefaultBackend=bootc"])
+
+path.write_text("\\n".join(lines) + "\\n")
 PY
 
 grep -Eq '^DefaultBackend=bootc$' "$CONFIG"
