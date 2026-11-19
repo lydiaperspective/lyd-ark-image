@@ -42,15 +42,27 @@ fi
 
 # PackageKit must select the bootc backend instead of Arch's ALPM backend.
 # Discover will then see the OS image as one updateable item, not host packages.
-if grep -Eq '^[[:space:]]*#?[[:space:]]*DefaultBackend=' "$CONFIG"; then
-    sed -i -E 's/^[[:space:]]*#?[[:space:]]*DefaultBackend=.*/DefaultBackend=bootc/' "$CONFIG"
-else
-    if grep -q '^\\[Daemon\\]' "$CONFIG"; then
-        sed -i '/^\\[Daemon\\]/a DefaultBackend=bootc' "$CONFIG"
-    else
-        printf '\\n[Daemon]\\nDefaultBackend=bootc\\n' >> "$CONFIG"
-    fi
-fi
+python - "$CONFIG" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+pattern = r"(?m)^[ \\t]*#?[ \\t]*DefaultBackend=.*$"
+if re.search(pattern, text):
+    text = re.sub(pattern, "DefaultBackend=bootc", text, count=1)
+elif re.search(r"(?m)^\\[Daemon\\][ \\t]*$", text):
+    text = re.sub(
+        r"(?m)^(\\[Daemon\\][ \\t]*)$",
+        r"\\1\\nDefaultBackend=bootc",
+        text,
+        count=1,
+    )
+else:
+    text = text.rstrip() + "\\n\\n[Daemon]\\nDefaultBackend=bootc\\n"
+path.write_text(text)
+PY
 
 grep -Eq '^DefaultBackend=bootc$' "$CONFIG"
 
