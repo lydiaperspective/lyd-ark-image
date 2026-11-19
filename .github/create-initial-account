@@ -30,12 +30,17 @@ PASSWORD_HASH="${ACCOUNT[2]}"
 }
 
 if getent passwd "$USERNAME" >/dev/null; then
-    echo "Refusing to overwrite an existing account: $USERNAME" >&2
-    exit 1
+    # Complete a partially-created account from an interrupted first-boot run,
+    # but never take over an unrelated account.
+    id -nG "$USERNAME" | tr ' ' '\n' | grep -qx wheel || {
+        echo "An unrelated account already uses the requested username: $USERNAME" >&2
+        exit 1
+    }
+    usermod --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
+else
+    useradd --create-home --groups wheel --shell /bin/bash \
+        --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
 fi
-
-useradd --create-home --groups wheel --shell /bin/bash \
-    --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
 
 id "$USERNAME" >/dev/null
 id -nG "$USERNAME" | tr ' ' '\n' | grep -qx wheel
