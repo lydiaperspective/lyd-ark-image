@@ -35,7 +35,7 @@ RUN set -e; \
             tuned tuned-ppd \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
             util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
-            btrfs-progs snapper snap-pac podman podman-compose distrobox composefs ibus iso-codes shadow sudo git nano zsh fish python rsync acl libnotify \
+            btrfs-progs snapper snap-pac podman podman-compose distrobox composefs ibus iso-codes shadow sudo git curl jq nano zsh fish python rsync acl libnotify \
             qemu-full libvirt virt-manager dnsmasq iptables-nft edk2-ovmf swtpm \
             fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
             slirp4netns passt fuse-overlayfs catatonit; \
@@ -103,7 +103,8 @@ COPY ark-bindmounts-pam /usr/lib/ark/ark-bindmounts-pam
 COPY ark-bindmounts.service /usr/lib/systemd/system/ark-bindmounts.service
 COPY ark /usr/bin/ark
 COPY ark-mimeapps.list /etc/xdg/mimeapps.list
-RUN chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam /usr/bin/ark && \
+RUN bash -n /usr/bin/ark && \
+    chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam /usr/bin/ark && \
     systemctl enable ark-bindmounts.service && \
     { grep -q 'pam_exec.so.*ark-bindmounts-pam' /etc/pam.d/system-login 2>/dev/null || \
       echo 'session optional pam_exec.so /usr/lib/ark/ark-bindmounts-pam' >> /etc/pam.d/system-login; }
