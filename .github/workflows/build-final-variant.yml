@@ -27,7 +27,7 @@ on:
 
 # Serialize builds only when they publish the same final tag.
 concurrency:
-  group: lyd-ark-final-${{ inputs.variant }}
+  group: lyd-ark-image-release
   cancel-in-progress: false
 
 permissions:
