@@ -121,6 +121,7 @@ jobs:
       - name: Download AUR packages, Alga, and backgrounds
         if: steps.aur-package-cache.outputs.cache-hit != 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           ALGA_URL: ${ steps.releases.outputs.alga-url }
           BACKGROUNDS_URL: ${ steps.releases.outputs.backgrounds-url }
           AUR_RELEASE_ID: ${ steps.releases.outputs.release-id }
@@ -148,6 +149,7 @@ jobs:
       - name: Download prebuilt Pacman cache on cache miss
         if: steps.pacman-cache.outputs.cache-hit != 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           AUR_RELEASE_ID: ${ steps.releases.outputs.release-id }
         run: |
           python3 .github/download-aur-release.py --kind cache \
