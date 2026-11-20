@@ -35,6 +35,9 @@ if ((${#local_packages[@]})); then
     /usr/bin/pacman -U --noconfirm "${local_packages[@]}"
 fi
 
+/usr/bin/pacman -Q inetutils
+command -v hostname >/dev/null
+
 # Stop at installation time rather than producing an incomplete bootable image.
 /usr/bin/pacman -Q plymouth bootc bootupd libselinux alga
 /usr/bin/pacman -Q btrfs-progs snapper snap-pac
