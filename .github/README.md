@@ -40,7 +40,21 @@ The build order is **base → kernel → final driver image**. The final stage a
 - `github-hosted` — GitHub-hosted runner (default)
 - `self-hosted` — a registered x86_64 Linux runner with rootless Podman, `wget`, and `curl`, labelled `ark-builder`
 
-The workflow builds only the three required kernel layers, then composes the seven final variants. The NVIDIA driver is no longer reinstalled for every kernel build; it is added only in the final stage that needs it.
+The workflow builds only the three required kernel layers, then composes the seven final variants. The NVIDIA driver is added only in the final stage that needs it. The independent agent development environment is built alongside the payload rather than acting as a prerequisite.
+
+For targeted testing, there are seven individually named **full payload** workflows. Each one builds only the selected image's required userspace base, matching kernel, and final image. The base and kernel are built locally on the same runner and are not pushed as intermediate tags; only the selected final image is published. This avoids unrelated variants, repeated runner setup, and intermediate registry uploads.
+
+| Actions workflow | Final image |
+|---|---|
+| **Build Full Payload - Intel Standard Desktop** | `intel-modern` |
+| **Build Full Payload - Intel Apex Desktop** | `intel-modern-apex` |
+| **Build Full Payload - NVIDIA Open Standard Desktop** | `ark-nvidia-open` |
+| **Build Full Payload - NVIDIA Open Apex Desktop** | `ark-apex-nvidia-open` |
+| **Build Full Payload - NVIDIA 580 Standard Desktop** | `ark-nvidia-580` |
+| **Build Full Payload - NVIDIA 580 Apex Desktop** | `ark-apex-nvidia-580` |
+| **Build Full Payload - Intel Server LTS** | `intel3-server-lts` |
+
+All seven use the shared `.github/workflows/build-single-final-payload.yml` implementation. They serialize with the other image-release workflows because the existing full pipeline publishes shared image tags. Package downloads and the prebuilt Pacman package cache are retained in GitHub Actions cache by release identity. The separate agent development environment job no longer blocks base-image builds; it runs independently.
 
 For a full non-Apex rebuild, `.github/workflows/build-payload-standard.yml` runs the same base → kernel → final pipeline but builds only `kernel-desktop-standard` and `kernel-server-lts`. It publishes the standard Intel desktop and server images, plus the standard-kernel NVIDIA 580 and NVIDIA open variants. It never builds the Apex kernel or Apex final images. Run it manually from Actions → **Build Lyd Ark Standard Payload** → **Run workflow**; it supports the same GitHub-hosted and self-hosted runner choices.
 
