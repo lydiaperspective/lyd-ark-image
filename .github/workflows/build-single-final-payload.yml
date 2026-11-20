@@ -66,6 +66,9 @@ jobs:
             command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner." >&2; exit 1; }
             command -v wget >/dev/null || { echo "Install wget on the self-hosted runner." >&2; exit 1; }
             command -v curl >/dev/null || { echo "Install curl on the self-hosted runner." >&2; exit 1; }
+            command -v gh >/dev/null || { echo "Install GitHub CLI on the self-hosted runner." >&2; exit 1; }
+            command -v jq >/dev/null || { echo "Install jq on the self-hosted runner." >&2; exit 1; }
+            command -v python3 >/dev/null || { echo "Install Python 3 on the self-hosted runner." >&2; exit 1; }
             PODMAN=podman
           else
             sudo apt-get update
