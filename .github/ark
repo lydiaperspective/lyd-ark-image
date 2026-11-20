@@ -23,7 +23,7 @@ Manageable features:
   github-runner  Register and run a repository-scoped self-hosted runner.
   solaar         Enable or disable the Logitech device manager tray app.
   sunshine       Install and run the Sunshine game-streaming host.
-  development    Create an isolated coding toolchain and install Claude Code/Codex.
+  development    Create a containerized coding toolchain and install Claude Code/Codex.
   virtualization Manage local QEMU/KVM virtual machines through libvirt.
 
 Included base capabilities:
