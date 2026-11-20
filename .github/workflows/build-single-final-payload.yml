@@ -135,6 +135,10 @@ jobs:
             -o .github/aur-packages/backgrounds.pkg.tar.zst
           test -s .github/aur-packages/alga.pkg.tar.zst
           test -s .github/aur-packages/backgrounds.pkg.tar.zst
+      - name: Validate cached Ark package bundle
+        run: |
+          test -s .github/aur-packages/alga.pkg.tar.zst
+          test -s .github/aur-packages/backgrounds.pkg.tar.zst
           ALGA_META=$($PODMAN run --rm -v "$PWD/.github/aur-packages:/packages:ro" docker.io/archlinux:latest pacman -Qp /packages/alga.pkg.tar.zst)
           [[ "$ALGA_META" == alga\ * ]] || { echo "Unexpected installer package: $ALGA_META" >&2; exit 1; }
 
