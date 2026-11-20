@@ -43,6 +43,12 @@ class InstallerTests(unittest.TestCase):
             # Isolate the desktop integration checks from the host runner.
             fixtures = {
                 'usr/lib/systemd/system/plasmalogin.service': '[Service]\n',
+                'usr/lib/systemd/system/virt-secret-init-encryption.service': '[Service]\n',
+                'usr/lib/systemd/system/virt-secret-init-encryption.service.d/10-ark-secret-directory.conf': 'ExecStartPre=/usr/bin/install -d -m 0700 -o root -g root /var/lib/libvirt/secrets\n',
+                'usr/lib/systemd/user/ark-solaar.service': '[Service]\n',
+                'usr/lib/systemd/user/ark-sunshine.service': '[Service]\n',
+                'usr/libexec/ark/ark-development': '#!/bin/sh\n',
+                'usr/libexec/ark/ark-virtualization': '#!/bin/sh\n',
                 'usr/lib/packagekit-backend/libpk_backend_bootc.so': 'fixture\n',
                 'usr/share/PackageKit/helpers/bootc/bootcBackend.py': '#!/usr/bin/env python3\n',
                 'etc/PackageKit/PackageKit.conf': 'DefaultBackend=bootc\n',
@@ -53,7 +59,7 @@ class InstallerTests(unittest.TestCase):
                 target = d/relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content)
-                if relative.endswith('bootcBackend.py'):
+                if relative.endswith(('bootcBackend.py', 'ark-development', 'ark-virtualization')):
                     target.chmod(0o755)
             mock=d/'pacman'
             mock.write_text('''#!/bin/bash
@@ -73,6 +79,8 @@ esac
                 '/tmp/aur-packages': str(d/'archives'),
                 '/usr/lib/initcpio': str(d),
                 '/usr/lib/systemd/system': str(d/'usr/lib/systemd/system'),
+                '/usr/lib/systemd/user': str(d/'usr/lib/systemd/user'),
+                '/usr/libexec/ark': str(d/'usr/libexec/ark'),
                 '/usr/lib/packagekit-backend': str(d/'usr/lib/packagekit-backend'),
                 '/usr/share/PackageKit': str(d/'usr/share/PackageKit'),
                 '/etc/PackageKit': str(d/'etc/PackageKit'),
@@ -84,7 +92,7 @@ esac
             return result,(d/'calls').read_text()
     def test_routes_official_and_local_and_skips_debug_headers(self):
         result,calls=self.run_installer()
-        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.returncode,0,result.stderr + result.stdout)
         self.assertIn('-S --needed --noconfirm plymouth',calls)
         install=[line for line in calls.splitlines() if line.startswith('-U')][0]
         self.assertIn('bootc-1-1',install)
