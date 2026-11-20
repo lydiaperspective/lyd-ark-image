@@ -61,7 +61,7 @@ install_toolchain() {
         set -euo pipefail
         sudo pacman -Syu --needed --noconfirm \
             base-devel git git-lfs github-cli nodejs npm \
-            python python-pip rustup cmake ninja clang pkgconf
+            python python-pip rustup cmake ninja clang pkgconf gdb lldb valgrind strace shellcheck shfmt jq ripgrep fd tree
         if ! rustup show active-toolchain >/dev/null 2>&1; then
             rustup default stable
         fi
