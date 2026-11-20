@@ -245,7 +245,7 @@ jobs:
 
   # Publish the two userspace roots first. They contain no kernel or GPU driver.
   build-base:
-    needs: [check-digest, build-agent-environment]
+    needs: [check-digest]
     if: needs.check-digest.outputs.needs-build == 'true'
     runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     permissions:
