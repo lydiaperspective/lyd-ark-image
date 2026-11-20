@@ -57,13 +57,19 @@ RUN set -e; \
         bash /tmp/build-packagekit-bootc.sh; \
         pacman -Rns --noconfirm gcc meson ninja pkgconf; \
     fi; \
-    # Distrobox 1.8.2.5 emits an invalid :ro:rslave volume option with Podman. \
-    # Upstream fix: https://github.com/89luca89/distrobox/pull/2086 \
-    if grep -Fq ':ro${rslave}' /usr/bin/distrobox-create; then \
-        sed -i 's/:ro${rslave}/:ro,${rslave}/' /usr/bin/distrobox-create; \
+    # Distrobox 1.8.2.5 emits invalid :ro:rslave syntax with Podman; apply upstream PR #2086. \
+    if grep -Fq 'rslave=":rslave"' /usr/bin/distrobox-create && \
+       ! grep -Fq 'rorslave=":ro,rslave"' /usr/bin/distrobox-create; then \
+        sed -i \
+            -e '/rslave=""/a\\        rorslave=":ro"' \
+            -e '/rslave=":rslave"/a\\        rorslave=":ro,rslave"' \
+            -e 's/:ro${rslave}/${rorslave}/' \
+            /usr/bin/distrobox-create; \
     fi; \
-    if grep -Fq ':ro${rslave}' /usr/bin/distrobox-create; then \
-        echo "ERROR: Distrobox still contains the invalid read-only slave mount syntax." >&2; \
+    if grep -Fq ':ro${rslave}' /usr/bin/distrobox-create || \
+       ! grep -Fq 'rorslave=":ro,rslave"' /usr/bin/distrobox-create || \
+       ! grep -Fq '${rorslave}' /usr/bin/distrobox-create; then \
+        echo "ERROR: Distrobox read-only slave mount compatibility patch failed." >&2; \
         exit 1; \
     fi; \
     bash -n /usr/bin/distrobox-create; \
