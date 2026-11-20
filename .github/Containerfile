@@ -50,7 +50,7 @@ RUN set -e; \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
             util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo \
             btrfs-progs snapper snap-pac podman podman-compose distrobox composefs ibus iso-codes shadow sudo git curl jq icu libunwind krb5 lttng-ust nano zsh fish python rsync acl libnotify \
-            qemu-full libvirt virt-manager virt-viewer dnsmasq iptables-nft edk2-ovmf swtpm \
+            qemu-full libvirt virt-manager virt-viewer spice-gtk dnsmasq iptables-nft edk2-ovmf swtpm \
             fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
             slirp4netns passt fuse-overlayfs catatonit; \
         chmod 0755 /tmp/build-packagekit-bootc.sh; \
