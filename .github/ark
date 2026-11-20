@@ -14,7 +14,7 @@ Usage:
   ark feature enable FEATURE
   ark feature disable FEATURE
   ark feature unregister github-runner
-  ark steam|tailscale|podman|distrobox|github-runner|solaar|sunshine status|enable|disable
+  ark steam|tailscale|podman|distrobox|github-runner|solaar|sunshine|development|virtualization ACTION [ARGS]
 
 Manageable features:
   steam          Install or remove Steam as a system Flatpak.
@@ -22,7 +22,7 @@ Manageable features:
   podman         Enable or disable the rootless Podman API socket.
   github-runner  Register and run a repository-scoped self-hosted runner.
   solaar         Enable or disable the Logitech device manager tray app.
-  sunshine       Install and run the Sunshine game-streaming host.
+  sunshine       Install and run the Sunshine game-streaming host.\n  development    Create an isolated coding toolchain and install Claude Code/Codex.\n  virtualization Manage local QEMU/KVM virtual machines through libvirt.
 
 Included base capabilities:
   distrobox      Already included in Ark desktop images; no daemon to enable.
@@ -33,7 +33,7 @@ Examples:
   ark podman enable
   ark github-runner enable
   ark solaar enable
-  ark sunshine enable
+  ark sunshine enable\n  ark development enable\n  ark virtualization enable\n  ark virtualization list\n  ark virtualization start my-vm
 EOF
 }
 
@@ -305,10 +305,22 @@ sunshine_action() {
     esac
 }
 
+development_action() {
+    /usr/libexec/ark/ark-development "$1"
+}
+
+virtualization_action() {
+    shift
+    /usr/libexec/ark/ark-virtualization "$@"
+}
+
 run_feature() {
     local action="$1"
     local feature="$2"
+    shift 2
     case "$feature" in
+        development) /usr/libexec/ark/ark-development "$action" "$@" ;;
+        virtualization) /usr/libexec/ark/ark-virtualization "$action" "$@" ;;
         steam) steam_action "$action" ;;
         tailscale) tailscale_action "$action" ;;
         podman) podman_action "$action" ;;
@@ -333,6 +345,8 @@ Manageable:
   github-runner  Optional repository-scoped runner service
   solaar         Optional Logitech device tray app
   sunshine       Optional game-streaming host (system Flatpak)
+  development    Optional Distrobox toolchain plus Claude Code/Codex
+  virtualization Optional local QEMU/KVM/libvirt VM host
 
 Included in the desktop base:
   distrobox      Always available; no service toggle
@@ -349,11 +363,13 @@ EOF
                 github_runner_action status
                 solaar_action status
                 sunshine_action status
+                /usr/libexec/ark/ark-development status
+                /usr/libexec/ark/ark-virtualization status
             fi
             ;;
-        enable|disable|unregister)
+        enable|disable|unregister|start|shutdown|restart|snapshot|console|gui|info|host)
             [[ -n "$feature" ]] || { echo "Specify a feature." >&2; usage; exit 2; }
-            run_feature "$action" "$feature"
+            run_feature "$action" "$feature" "${@:3}"
             ;;
         *)
             usage
@@ -382,8 +398,8 @@ fi
 feature="$1"
 action="${2:-status}"
 case "$action" in
-    status|enable|disable|unregister) ;;
+    status|enable|disable|unregister|start|shutdown|restart|snapshot|console|gui|info|host|list) ;;
     *) usage; exit 2 ;;
 esac
 
-run_feature "$action" "$feature"
+run_feature "$action" "$feature" "${@:3}"
