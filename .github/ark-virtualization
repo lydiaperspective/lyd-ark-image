@@ -39,10 +39,12 @@ status() {
         echo "KVM acceleration: unavailable; check firmware virtualization settings and host support"
     fi
     if systemctl is-active --quiet libvirtd.service; then
-        if as_root virsh net-info default >/dev/null 2>&1; then
-            as_root virsh net-info default
+        if [[ $EUID -eq 0 ]]; then
+            virsh net-info default 2>/dev/null || echo "Default NAT network: not defined"
+        elif command -v sudo >/dev/null 2>&1 && sudo -n virsh net-info default >/dev/null 2>&1; then
+            sudo -n virsh net-info default
         else
-            echo "Default NAT network: not defined"
+            echo "Default NAT network: active state not queried (requires elevated access)"
         fi
     else
         echo "Default NAT network: not checked while libvirtd is inactive"
@@ -87,7 +89,6 @@ disable() {
         as_root virsh net-destroy default >/dev/null 2>&1 || true
     fi
     as_root systemctl disable --now libvirtd.service
-    echo "Virtualization services disabled. VM definitions and disk images were retained."
     echo "VM definitions, disk images, and network configuration were retained."
 }
 
