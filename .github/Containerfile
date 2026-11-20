@@ -37,7 +37,7 @@ RUN set -e; \
             plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
-            flatpak discover packagekit packagekit-qt6 \
+            flatpak discover packagekit packagekit-qt6 steam \
             gcc meson ninja pkgconf \
             tuned tuned-ppd \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
