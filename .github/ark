@@ -358,7 +358,7 @@ EOF
                 /usr/libexec/ark/ark-virtualization status
             fi
             ;;
-        enable|disable|unregister|start|shutdown|restart|snapshot|console|gui|info|host)
+        enable|disable|unregister|update|start|shutdown|restart|snapshot|console|gui|info|host)
             [[ -n "$feature" ]] || { echo "Specify a feature." >&2; usage; exit 2; }
             run_feature "$action" "$feature" "${@:3}"
             ;;
@@ -389,7 +389,7 @@ fi
 feature="$1"
 action="${2:-status}"
 case "$action" in
-    status|enable|disable|unregister|start|shutdown|restart|snapshot|console|gui|info|host|list) ;;
+    status|enable|disable|unregister|update|start|shutdown|restart|snapshot|console|gui|info|host|list) ;;
     *) usage; exit 2 ;;
 esac
 
