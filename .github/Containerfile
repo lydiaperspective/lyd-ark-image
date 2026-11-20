@@ -48,7 +48,7 @@ RUN set -e; \
             plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate solaar \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
-            flatpak discover packagekit packagekit-qt6 print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi \
+            flatpak discover packagekit packagekit-qt6 bluez bluez-utils bluedevil print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi \
             gcc meson ninja pkgconf \
             tuned tuned-ppd \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
@@ -84,10 +84,10 @@ RUN set -e; \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap; \
     echo "arklinux" > /etc/hostname; \
     if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
-        for pkg in print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi; do \
+        for pkg in bluez bluez-utils bluedevil print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi; do \
             pacman -Q "$pkg" >/dev/null || { echo "ERROR: printing/scanning package missing: $pkg" >&2; exit 1; }; \
         done; \
-        for unit in cups.service avahi-daemon.service ipp-usb.service; do \
+        for unit in bluetooth.service cups.service avahi-daemon.service ipp-usb.service; do \
             test -f "/usr/lib/systemd/system/$unit" || { echo "ERROR: printing/scanning unit missing: $unit" >&2; exit 1; }; \
         done; \
         # Keep the desktop profile KDE-only; remove GNOME utilities if they \
@@ -131,7 +131,7 @@ RUN set -e; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
         chmod 0755 /usr/libexec/ark/install-waterfox; \
-        systemctl enable plasmalogin NetworkManager tuned tuned-ppd ark-waterfox-install.service; \
+        systemctl enable plasmalogin NetworkManager bluetooth tuned tuned-ppd ark-waterfox-install.service; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
     mkdir -p /etc/sudoers.d; \
