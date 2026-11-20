@@ -282,7 +282,7 @@ RUN set -e; \
         for pkg in nvidia-open-dkms nvidia-utils nvidia-settings lib32-nvidia-utils; do \
             if pacman -Q "$pkg" >/dev/null 2>&1; then conflicting_nvidia+=("$pkg"); fi; \
         done; \
-        if (('${#conflicting_nvidia[@]}')); then pacman -Rdd --noconfirm "${conflicting_nvidia[@]}"; fi; \
+        if ((${#conflicting_nvidia[@]})); then pacman -Rdd --noconfirm "${conflicting_nvidia[@]}"; fi; \
         # Bootstrap the CachyOS signing key before installing the driver stack.
         printf '\n[cachyos]\nSigLevel = Never\nServer = https://mirror.cachyos.org/repo/$arch/$repo\n' >> /etc/pacman.conf; \
         pacman-key --init; \
