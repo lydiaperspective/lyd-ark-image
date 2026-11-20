@@ -37,6 +37,7 @@ Examples:
   ark solaar enable
   ark sunshine enable
   ark development enable
+  ark development shell
   ark virtualization enable
   ark virtualization list
   ark virtualization start my-vm
