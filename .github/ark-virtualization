@@ -20,6 +20,13 @@ as_root() {
     fi
 }
 
+require_libvirtd() {
+    if ! systemctl is-active --quiet libvirtd.service; then
+        echo "Virtualization is disabled. Run 'ark virtualization enable' first." >&2
+        exit 1
+    fi
+}
+
 require_vm_name() {
     [[ -n "${1:-}" ]] || {
         echo "A virtual machine name is required." >&2
@@ -77,6 +84,11 @@ enable() {
 
 disable() {
     require_command virsh
+    require_command systemctl
+    if ! systemctl is-active --quiet libvirtd.service; then
+        echo "Virtualization services are already disabled."
+        return
+    fi
     local running
     running=$(as_root virsh list --state-running --name | sed '/^[[:space:]]*$/d')
     if [[ -n "$running" ]]; then
@@ -94,6 +106,7 @@ disable() {
 
 list_vms() {
     require_command virsh
+    require_libvirtd
     as_root virsh list --all
 }
 
@@ -102,6 +115,7 @@ vm_action() {
     local vm="${2:-}"
     require_vm_name "$vm"
     require_command virsh
+    require_libvirtd
     as_root virsh dominfo "$vm" >/dev/null
     case "$action" in
         info)
@@ -164,6 +178,7 @@ case "${1:-status}" in
         ;;
     gui)
         require_command virt-manager
+        require_libvirtd
         virt-manager --connect qemu:///system
         ;;
     *)
