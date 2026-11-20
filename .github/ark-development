@@ -23,6 +23,7 @@ install_toolchain() {
         if ! rustup show active-toolchain >/dev/null 2>&1; then
             rustup default stable
         fi
+        rustup component add rustfmt clippy
         git lfs install
     '
 }
