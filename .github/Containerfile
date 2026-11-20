@@ -15,6 +15,8 @@ COPY build-packagekit-bootc.sh /tmp/build-packagekit-bootc.sh
 COPY patch-packagekit-bootc.py /tmp/patch-packagekit-bootc.py
 COPY install-waterfox /usr/libexec/ark/install-waterfox
 COPY ark-waterfox-install.service /usr/lib/systemd/system/ark-waterfox-install.service
+COPY ark-solaar.service /usr/lib/systemd/user/ark-solaar.service
+COPY ark-sunshine.service /usr/lib/systemd/user/ark-sunshine.service
 
 # Layer 1: Base system packages (no kernel — variant-independent)
 RUN set -e; \
@@ -37,7 +39,7 @@ RUN set -e; \
             base glibc linux-firmware networkmanager mkinitcpio tailscale \
             plasma-meta plasma-desktop plasma-workspace kscreen plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-cursors breeze-icons \
             plasma-workspace-wallpapers plymouth-kcm \
-            plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate \
+            plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate solaar \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
             flatpak discover packagekit packagekit-qt6 steam \
