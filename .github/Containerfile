@@ -42,7 +42,7 @@ RUN set -e; \
             slirp4netns passt fuse-overlayfs catatonit; \
     else \
         pacman -S --noconfirm \
-            base glibc linux-firmware networkmanager mkinitcpio tailscale \
+            base glibc inetutils linux-firmware networkmanager mkinitcpio tailscale \
             plasma-meta plasma-desktop plasma-workspace kscreen plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-cursors breeze-icons \
             plasma-workspace-wallpapers plymouth-kcm \
             plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate solaar \
