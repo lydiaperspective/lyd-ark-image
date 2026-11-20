@@ -17,8 +17,8 @@ permissions:
 
 jobs:
   build:
-    name: Build complete payload - ${ inputs.variant }
-    runs-on: ${ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }
+    name: Build complete payload - ${{ inputs.variant }}
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -38,7 +38,7 @@ jobs:
       - name: Select matching base and kernel profiles
         id: profile
         env:
-          VARIANT: ${ inputs.variant }
+          VARIANT: ${{ inputs.variant }}
         run: |
           case "$VARIANT" in
             intel-modern)
@@ -62,7 +62,7 @@ jobs:
 
       - name: Prepare Podman and build utilities
         run: |
-          if [ "${ inputs.runner }" = "self-hosted" ]; then
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
             command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner." >&2; exit 1; }
             command -v wget >/dev/null || { echo "Install wget on the self-hosted runner." >&2; exit 1; }
             command -v curl >/dev/null || { echo "Install curl on the self-hosted runner." >&2; exit 1; }
@@ -77,7 +77,7 @@ jobs:
       - name: Get latest published build inputs
         id: releases
         env:
-          GH_TOKEN: ${ github.token }
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 .github/download-aur-release.py --kind identity
           CARRIER=$(gh api repos/zamkara/carrier-pkg/releases/latest)
@@ -92,18 +92,17 @@ jobs:
 
       - name: Log in to GitHub Container Registry
         env:
-          GH_TOKEN: ${ github.token }
+          GH_TOKEN: ${{ github.token }}
         run: |
-          printf '%s' "$GH_TOKEN" | $PODMAN login ghcr.io -u "${ github.actor }" --password-stdin
+          printf '%s' "$GH_TOKEN" | $PODMAN login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build required userspace base locally
         env:
-          BASE_TAG: ${ steps.profile.outputs.base }
-          VARIANT: ${ inputs.variant }
-          CARRIER_SHA: ${ steps.releases.outputs.carrier-sha }
-          CARRIER_URL: ${ steps.releases.outputs.carrier-url }
+          VARIANT: ${{ inputs.variant }}
+          CARRIER_SHA: ${{ steps.releases.outputs.carrier-sha }}
+          CARRIER_URL: ${{ steps.releases.outputs.carrier-url }}
         run: |
-          IMAGE="ghcr.io/${ github.repository }:$BASE_TAG"
+          IMAGE="localhost/lyd-ark-build:base"
           $PODMAN build --target base \
             --build-arg VARIANT="$VARIANT" \
             --build-arg CARRIER_SHA="$CARRIER_SHA" \
@@ -115,15 +114,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .github/aur-packages
-          key: ${ runner.os }-ark-packages-${ steps.releases.outputs.release-id }-${ steps.releases.outputs.alga-sha }-${ steps.releases.outputs.backgrounds-sha }
+          key: ${{ runner.os }}-ark-packages-${{ steps.releases.outputs.release-id }}-${{ steps.releases.outputs.alga-sha }}-${{ steps.releases.outputs.backgrounds-sha }}
 
       - name: Download AUR packages, Alga, and backgrounds
         if: steps.aur-package-cache.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          ALGA_URL: ${ steps.releases.outputs.alga-url }
-          BACKGROUNDS_URL: ${ steps.releases.outputs.backgrounds-url }
-          AUR_RELEASE_ID: ${ steps.releases.outputs.release-id }
+          ALGA_URL: ${{ steps.releases.outputs.alga-url }}
+          BACKGROUNDS_URL: ${{ steps.releases.outputs.backgrounds-url }}
+          AUR_RELEASE_ID: ${{ steps.releases.outputs.release-id }}
         run: |
           python3 .github/download-aur-release.py --kind packages \
             --release-id "$AUR_RELEASE_ID" --destination .github/aur-packages
@@ -141,15 +140,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .github/pacman-cache
-          key: ${ runner.os }-pacman-payload-${ steps.releases.outputs.release-id }
+          key: ${{ runner.os }}-pacman-payload-${{ steps.releases.outputs.release-id }}
           restore-keys: |
-            ${ runner.os }-pacman-payload-
+            ${{ runner.os }}-pacman-payload-
 
       - name: Download prebuilt Pacman cache on cache miss
         if: steps.pacman-cache.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          AUR_RELEASE_ID: ${ steps.releases.outputs.release-id }
+          AUR_RELEASE_ID: ${{ steps.releases.outputs.release-id }}
         run: |
           python3 .github/download-aur-release.py --kind cache \
             --release-id "$AUR_RELEASE_ID" --destination pacman-cache-parts
@@ -159,31 +158,27 @@ jobs:
 
       - name: Build required kernel image locally
         env:
-          BASE_TAG: ${ steps.profile.outputs.base }
-          KERNEL_TAG: ${ steps.profile.outputs.kernel }
-          KERNEL_VARIANT: ${ steps.profile.outputs.kernel_variant }
-          AUR_SHA: ${ steps.releases.outputs.release-id }
+          KERNEL_VARIANT: ${{ steps.profile.outputs.kernel_variant }}
+          AUR_SHA: ${{ steps.releases.outputs.release-id }}
         run: |
-          IMAGE="ghcr.io/${ github.repository }:kernel-$KERNEL_TAG"
+          IMAGE="localhost/lyd-ark-build:kernel"
           $PODMAN build -v "$PWD/.github/pacman-cache:/var/cache/pacman/pkg" \
             --target kernel \
-            --build-arg BASE_IMAGE="ghcr.io/${ github.repository }:$BASE_TAG" \
+            --build-arg BASE_IMAGE="localhost/lyd-ark-build:base" \
             --build-arg VARIANT="$KERNEL_VARIANT" \
             --build-arg AUR_SHA="$AUR_SHA" \
             -t "$IMAGE" -f .github/Containerfile .github/
-          $PODMAN push "$IMAGE"
-          if [ "${ inputs.runner }" != "self-hosted" ]; then
+          if [ "${{ inputs.runner }}" != "self-hosted" ]; then
             sudo chown -R "$USER:$USER" .github/pacman-cache .github/aur-packages
           fi
 
       - name: Build, lint, and publish selected final image
         env:
-          VARIANT: ${ inputs.variant }
-          KERNEL_TAG: ${ steps.profile.outputs.kernel }
+          VARIANT: ${{ inputs.variant }}
         run: |
-          IMAGE="ghcr.io/${ github.repository }:$VARIANT"
+          IMAGE="ghcr.io/${{ github.repository }}:$VARIANT"
           $PODMAN build \
-            --build-arg KERNEL_IMAGE="ghcr.io/${ github.repository }:kernel-$KERNEL_TAG" \
+            --build-arg KERNEL_IMAGE="localhost/lyd-ark-build:kernel" \
             --build-arg VARIANT="$VARIANT" \
             -t "$IMAGE" -f .github/Containerfile .github/
           $PODMAN run --rm --entrypoint /usr/bin/bootc "$IMAGE" container lint
