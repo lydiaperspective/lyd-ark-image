@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONTAINER="ark-development"
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || {
+        echo "Required command not found: $1" >&2
+        exit 1
+    }
+}
+
+container_exists() {
+    distrobox list --no-color 2>/dev/null | grep -Fq "$CONTAINER"
+}
+
+install_toolchain() {
+    distrobox enter --name "$CONTAINER" -- bash -lc '
+        set -euo pipefail
+        sudo pacman -Syu --needed --noconfirm \
+            base-devel git git-lfs github-cli nodejs npm \
+            python python-pip rustup cmake ninja clang pkgconf
+        if ! rustup show active-toolchain >/dev/null 2>&1; then
+            rustup default stable
+        fi
+        git lfs install
+    '
+}
+
+install_agents() {
+    # These vendor installers install user-scoped executables/configuration.
+    # Credentials and agent state remain in the user's home, not the image.
+    require_command curl
+    curl -fsSL https://claude.ai/install.sh | bash
+    curl -fsSL https://chatgpt.com/codex/install.sh | sh
+}
+
+case "${1:-status}" in
+    enable)
+        require_command distrobox
+        require_command podman
+        if ! container_exists; then
+            echo "Creating the isolated Ark development environment..."
+            distrobox create --name "$CONTAINER" \
+                --image docker.io/library/archlinux:latest --yes
+        fi
+        install_toolchain
+        install_agents
+        echo "Ark development environment is ready."
+        echo "Claude Code and Codex are installed for this user."
+        ;;
+    update)
+        require_command distrobox
+        container_exists || {
+            echo "Ark development is not enabled. Run 'ark development enable' first." >&2
+            exit 1
+        }
+        install_toolchain
+        install_agents
+        ;;
+    disable)
+        require_command distrobox
+        if container_exists; then
+            echo "Removing the Ark development container..."
+            distrobox stop --name "$CONTAINER" 2>/dev/null || true
+            distrobox rm --name "$CONTAINER" --force
+        else
+            echo "Ark development container is already disabled."
+        fi
+        echo "User projects, Claude/Codex credentials, and home-directory configuration are retained."
+        echo "The user-installed Claude Code and Codex executables are not removed."
+        ;;
+    status)
+        require_command distrobox
+        if container_exists; then
+            echo "Ark development container: present"
+            distrobox list --no-color | grep -F "$CONTAINER" || true
+        else
+            echo "Ark development container: absent"
+        fi
+        for tool in claude codex git gh node npm python rustc cargo cmake ninja clang; do
+            if command -v "$tool" >/dev/null 2>&1; then
+                printf '%s: available\n' "$tool"
+            else
+                printf '%s: not available on host PATH\n' "$tool"
+            fi
+        done
+        ;;
+    *)
+        echo "Usage: ark development {enable|disable|status|update}" >&2
+        exit 2
+        ;;
+esac
