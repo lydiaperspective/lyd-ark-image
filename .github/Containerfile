@@ -33,7 +33,7 @@ RUN set -e; \
     else \
         pacman -S --noconfirm \
             base glibc linux-firmware networkmanager mkinitcpio tailscale \
-            plasma-desktop plasma-workspace plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-icons \
+            plasma-desktop plasma-workspace kscreen plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-icons \
             plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark okular kate \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
