@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="/var/lib/libvirt"
+DEFAULT_NETWORK_XML="/usr/share/libvirt/networks/default.xml"
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || {
+        echo "Required command not found: $1" >&2
+        exit 1
+    }
+}
+
+as_root() {
+    if [[ $EUID -eq 0 ]]; then
+        "$@"
+    else
+        require_command sudo
+        sudo "$@"
+    fi
+}
+
+require_vm_name() {
+    [[ -n "${1:-}" ]] || {
+        echo "A virtual machine name is required." >&2
+        exit 2
+    }
+}
+
+status() {
+    if systemctl is-active --quiet libvirtd.service; then
+        echo "libvirtd: active"
+    else
+        echo "libvirtd: inactive (run 'ark virtualization enable')"
+    fi
+    if [[ -e /dev/kvm ]]; then
+        echo "KVM acceleration: available"
+    else
+        echo "KVM acceleration: unavailable; check firmware virtualization settings and host support"
+    fi
+    if as_root virsh net-info default >/dev/null 2>&1; then
+        as_root virsh net-info default
+    else
+        echo "Default NAT network: not defined"
+    fi
+}
+
+enable() {
+    require_command systemctl
+    require_command virsh
+    if ! getent group libvirt >/dev/null 2>&1; then
+        as_root groupadd --system libvirt
+    fi
+    as_root usermod -aG libvirt "$USER"
+    as_root systemctl enable --now libvirtd.service
+
+    if ! as_root virsh net-info default >/dev/null 2>&1; then
+        [[ -s "$DEFAULT_NETWORK_XML" ]] || {
+            echo "libvirt's default NAT network definition is missing: $DEFAULT_NETWORK_XML" >&2
+            exit 1
+        }
+        as_root virsh net-define "$DEFAULT_NETWORK_XML"
+    fi
+    as_root virsh net-autostart default
+    if ! as_root virsh net-info default | grep -q 'Active:.*yes'; then
+        as_root virsh net-start default
+    fi
+
+    echo "Virtualization is enabled."
+    echo "Your account was added to the libvirt group; log out and back in before using virt-manager without sudo."
+    if [[ ! -e /dev/kvm ]]; then
+        echo "Warning: /dev/kvm is unavailable. VMs may be limited to slow software emulation."
+    fi
+}
+
+disable() {
+    require_command virsh
+    local running
+    running=$(as_root virsh list --state-running --name | sed '/^[[:space:]]*$/d')
+    if [[ -n "$running" ]]; then
+        echo "Cannot disable virtualization while VMs are running:" >&2
+        printf '%s\n' "$running" >&2
+        echo "Shut them down first with 'ark virtualization shutdown VM'." >&2
+        exit 1
+    fi
+    if as_root virsh net-info default >/dev/null 2>&1; then
+        as_root virsh net-destroy default >/dev/null 2>&1 || true
+    fi
+    as_root systemctl disable --now libvirtd.service
+    echo "Virtualization services disabled. VM definitions and disk images were retained."
+    echo "Your libvirt group membership was retained and can be removed manually if desired."
+}
+
+list_vms() {
+    require_command virsh
+    as_root virsh list --all
+}
+
+vm_action() {
+    local action="$1"
+    local vm="${2:-}"
+    require_vm_name "$vm"
+    require_command virsh
+    as_root virsh dominfo "$vm" >/dev/null
+    case "$action" in
+        info)
+            as_root virsh dominfo "$vm"
+            ;;
+        start)
+            as_root virsh start "$vm"
+            ;;
+        shutdown)
+            as_root virsh shutdown "$vm"
+            ;;
+        restart)
+            as_root virsh reboot "$vm"
+            ;;
+        snapshot)
+            local snapshot="${3:-}"
+            [[ -n "$snapshot" ]] || {
+                echo "Usage: ark virtualization snapshot VM SNAPSHOT_NAME" >&2
+                exit 2
+            }
+            [[ "$snapshot" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+                echo "Snapshot names may contain only letters, numbers, dots, underscores, and hyphens." >&2
+                exit 2
+            }
+            as_root virsh snapshot-create-as "$vm" "$snapshot" --atomic
+            ;;
+        console)
+            require_command virt-manager
+            virt-manager --connect qemu:///system --show-domain-console "$vm" >/dev/null 2>&1 &
+            ;;
+        *)
+            echo "Unknown VM action: $action" >&2
+            exit 2
+            ;;
+    esac
+}
+
+case "${1:-status}" in
+    enable)
+        enable
+        ;;
+    disable)
+        disable
+        ;;
+    status)
+        status
+        ;;
+    list)
+        list_vms
+        ;;
+    host)
+        echo "CPU threads: $(nproc)"
+        echo "Memory:"
+        free -h
+        echo "VM storage:"
+        df -h "$ROOT_DIR" 2>/dev/null || df -h /var
+        ;;
+    info|start|shutdown|restart|snapshot|console)
+        vm_action "$@"
+        ;;
+    gui)
+        require_command virt-manager
+        virt-manager --connect qemu:///system
+        ;;
+    *)
+        echo "Usage: ark virtualization {enable|disable|status|list|host|gui|info VM|start VM|shutdown VM|restart VM|snapshot VM NAME|console VM}" >&2
+        exit 2
+        ;;
+esac
