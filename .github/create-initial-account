@@ -27,6 +27,16 @@ while true; do
 done
 
 while true; do
+    read -r -p 'Hostname [lyd-ark]: ' SYSTEM_HOSTNAME
+    SYSTEM_HOSTNAME=${SYSTEM_HOSTNAME:-lyd-ark}
+    if [[ ! "$SYSTEM_HOSTNAME" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
+        printf 'Use 1-63 lowercase letters, digits or hyphens; start and end with a letter or digit.\n\n'
+        continue
+    fi
+    break
+done
+
+while true; do
     read -r -p 'Display name: ' FULL_NAME
     if [[ -z "${FULL_NAME//[[:space:]]/}" || "$FULL_NAME" == *$'\n'* || "$FULL_NAME" == *$'\r'* ]]; then
         printf 'Please enter a valid display name.\n\n'
@@ -59,6 +69,13 @@ unset PASSWORD PASSWORD_CONFIRM
     printf 'Could not securely process the password. Please reboot and try again.\n' >&2
     exit 1
 }
+
+printf '\nSetting system hostname to %s...\n' "$SYSTEM_HOSTNAME"
+hostnamectl set-hostname --static "$SYSTEM_HOSTNAME"
+if [[ "$(hostnamectl --static)" != "$SYSTEM_HOSTNAME" ]]; then
+    printf 'Could not apply the requested hostname. Please reboot and try again.\n' >&2
+    exit 1
+fi
 
 printf '\nCreating your administrator account...\n'
 useradd --create-home --groups wheel,ark,video,render --shell /bin/bash \
