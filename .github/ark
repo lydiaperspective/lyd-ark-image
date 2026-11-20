@@ -65,7 +65,8 @@ steam_action() {
     case "$1" in
         enable)
             echo "Installing Steam system-wide from Flathub..."
-            as_root flatpak install --system --noninteractive --assumeyes flathub "$APP_ID_STEAM"
+            as_root flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+            as_root flatpak install --system --noninteractive --assumeyes --or-update flathub "$APP_ID_STEAM"
             ;;
         disable)
             if flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
