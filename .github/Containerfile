@@ -58,6 +58,16 @@ RUN set -e; \
     ln -sf /usr/share/zoneinfo/UTC /etc/localtime; \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap; \
     echo "arklinux" > /etc/hostname; \
+    if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
+        if pacman -Q sddm >/dev/null 2>&1; then \
+            echo "ERROR: SDDM must not be present in Lyd Ark desktop images." >&2; \
+            exit 1; \
+        fi; \
+        if ! pacman -Q plasma-login-manager >/dev/null 2>&1; then \
+            echo "ERROR: Plasma Login Manager is missing from the desktop image." >&2; \
+            exit 1; \
+        fi; \
+    fi; \
     pacman -Scc --noconfirm
 
 # Layer 1b: First-boot account setup. The live installer does not collect,
