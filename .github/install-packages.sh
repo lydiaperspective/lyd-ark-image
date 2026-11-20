@@ -68,6 +68,8 @@ else
     test -x /usr/libexec/ark/ark-virtualization
     ! /usr/bin/pacman -Qq | grep -qx sddm
     test -s /usr/lib/systemd/system/plasmalogin.service
+    test -s /usr/lib/systemd/system/virt-secret-init-encryption.service
+    grep -Fq 'ExecStartPre=/usr/bin/install -d -m 0700 -o root -g root /var/lib/libvirt/secrets' /usr/lib/systemd/system/virt-secret-init-encryption.service.d/10-ark-secret-directory.conf
     test -s /usr/lib/systemd/user/ark-solaar.service
     test -s /usr/lib/systemd/user/ark-sunshine.service
     test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
