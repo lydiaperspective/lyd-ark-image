@@ -84,6 +84,19 @@ RUN set -e; \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap; \
     echo "arklinux" > /etc/hostname; \
     if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
+        # Keep the desktop profile KDE-only; remove GNOME utilities if they \
+        # arrive as dependencies of the selected package set. \
+        for pkg in nautilus gnome-system-monitor gnome-disk-utility; do \
+            if pacman -Q "$pkg" >/dev/null 2>&1; then \
+                pacman -Rns --noconfirm "$pkg"; \
+            fi; \
+        done; \
+        for pkg in nautilus gnome-system-monitor gnome-disk-utility; do \
+            if pacman -Q "$pkg" >/dev/null 2>&1; then \
+                echo "ERROR: unwanted GNOME application remains installed: $pkg" >&2; \
+                exit 1; \
+            fi; \
+        done; \
         if pacman -Q sddm >/dev/null 2>&1; then \
             echo "ERROR: SDDM must not be present in Lyd Ark desktop images." >&2; \
             exit 1; \
