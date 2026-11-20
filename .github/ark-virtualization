@@ -61,7 +61,12 @@ status() {
 enable() {
     require_command systemctl
     require_command virsh
-    as_root systemctl enable --now libvirtd.service
+    if ! as_root systemctl enable --now libvirtd.service; then
+        echo "Failed to start libvirtd. Recent service diagnostics:" >&2
+        as_root systemctl status libvirtd.service virt-secret-init-encryption.service --no-pager -l >&2 || true
+        as_root journalctl -b -u virt-secret-init-encryption.service -u libvirtd.service --no-pager -n 50 >&2 || true
+        exit 1
+    fi
 
     if ! as_root virsh net-info default >/dev/null 2>&1; then
         [[ -s "$DEFAULT_NETWORK_XML" ]] || {
