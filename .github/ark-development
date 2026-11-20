@@ -49,6 +49,14 @@ case "${1:-status}" in
         echo "Ark development environment is ready."
         echo "Claude Code and Codex are installed for this user."
         ;;
+    shell)
+        require_command distrobox
+        container_exists || {
+            echo "Ark development is not enabled. Run 'ark development enable' first." >&2
+            exit 1
+        }
+        distrobox enter --name "$CONTAINER"
+        ;;
     update)
         require_command distrobox
         container_exists || {
