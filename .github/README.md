@@ -73,6 +73,68 @@ Ark uses Btrfs + Snapper + snap-pac. ZFS/SPL packages are excluded. The installe
 
 The desktop profile installs Arch's `plasma-meta` package to keep the complete supported KDE Plasma desktop component set in place, plus Plasma workspace wallpapers and the Plymouth settings module. It includes Discover/Flatpak, Steam, Dolphin, Ark, Okular, Kate, Konsole, Spectacle, and Partition Manager, alongside Waterfox from Flathub, TuneD/tuned-ppd, Podman, Solaar, and the Ark feature manager. Solaar is installed as a system package, with its tray service opt-in per user. Sunshine is available as an optional system-wide Flathub feature and runs as a per-user graphical-session service. This is the full Plasma desktop stack rather than the separate `kde-applications` collection of hundreds of optional KDE apps. NVIDIA images enable DRM kernel modesetting for compositor features such as adaptive sync where the GPU and driver support them. The server profile is headless, uses the LTS kernel, enables Cockpit and SSH, and permits SSH password authentication while disabling root SSH login.
 
+## Optional development and desktop virtualization
+
+The desktop base includes the QEMU/KVM and libvirt package stack, but the
+libvirt host service is not enabled automatically. This keeps virtualization
+available without starting its daemon on every desktop boot.
+
+### Development environment
+
+Run `ark development enable` to create a user-owned Arch Linux Distrobox
+named `ark-development`. It contains base-devel, Git/Git LFS, GitHub CLI,
+Node.js/npm, Python/pip, Rust, C/C++ tooling, CMake, Ninja, and pkgconf.
+The feature also installs Claude Code and OpenAI Codex CLI using their
+vendor-provided user-level installers.
+
+The Distrobox container provides a mutable development toolchain without
+adding the compilers and SDKs to the immutable host image. Projects and
+credentials remain in the user's home directory. Commands:
+
+```bash
+ark development enable
+ark development status
+ark development update
+ark development disable
+```
+
+Disabling removes the `ark-development` container but deliberately retains
+user projects, agent credentials/configuration, and the user-installed
+Claude Code/Codex executables.
+
+### Virtualization
+
+Desktop images include QEMU, libvirt, virt-manager, virt-viewer, OVMF UEFI
+firmware, swtpm, dnsmasq, and the NAT networking dependencies. The
+`libvirtd` service is opt-in on desktop images; the server image retains its
+existing Cockpit/libvirt configuration.
+
+```bash
+ark virtualization enable
+ark virtualization status
+ark virtualization list
+ark virtualization host
+ark virtualization gui
+ark virtualization info VM
+ark virtualization start VM
+ark virtualization shutdown VM
+ark virtualization restart VM
+ark virtualization snapshot VM SNAPSHOT_NAME
+ark virtualization console VM
+ark virtualization disable
+```
+
+Enabling starts libvirt and configures its default NAT network. VM management
+uses the desktop's Polkit authorization rather than granting every desktop
+user unrestricted libvirt group access. Disabling is refused while any VM is
+running; VM definitions, disks, and network configuration are retained.
+KVM acceleration requires CPU virtualization support enabled in firmware and
+available to the host as `/dev/kvm`.
+
+The current VM manager is a local CLI/virt-manager foundation. A restricted
+local API and MCP transport for future ChatGPT integration are a separate
+follow-up; no network-facing VM management endpoint is enabled by this change.
+
 ## Local build examples
 
 Build the desktop userspace base:
@@ -113,6 +175,7 @@ Build files live in `.github/`:
 - `build-payload.yml` — staged image build and GHCR publication workflow
 - `bls-sync.sh`, `ark-bls-sync.service`, and `bls-sync.conf` — boot entry synchronization
 - `ark` and related scripts — Ark runtime feature and system integration tools
+- `ark-development` and `ark-virtualization` — optional development and local VM feature managers
 - `ark-solaar.service` and `ark-sunshine.service` — opt-in per-user graphical-session services
 
 ## Deployment
