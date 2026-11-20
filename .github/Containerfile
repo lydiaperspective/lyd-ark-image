@@ -59,6 +59,14 @@ RUN set -e; \
             slirp4netns passt fuse-overlayfs catatonit; \
         chmod 0755 /tmp/build-packagekit-bootc.sh; \
         bash /tmp/build-packagekit-bootc.sh; \
+        # Keep PackageKit's bootc backend for system updates, but remove the
+        # Arch ALPM backend so Discover cannot offer Arch repository packages.
+        rm -f /usr/lib/packagekit-backend/libpk_backend_alpm.so; \
+        test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so; \
+        if [[ -e /usr/lib/packagekit-backend/libpk_backend_alpm.so ]]; then \
+            echo "ERROR: Arch ALPM PackageKit backend is still installed." >&2; \
+            exit 1; \
+        fi; \
         pacman -Rns --noconfirm gcc meson ninja pkgconf; \
     fi; \
     # Distrobox 1.8.2.5 emits invalid :ro:rslave syntax with Podman; apply upstream PR #2086. \
