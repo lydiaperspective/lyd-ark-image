@@ -108,7 +108,7 @@ Claude Code/Codex executables.
 ### Virtualization
 
 Desktop images include QEMU, libvirt, virt-manager, virt-viewer, OVMF UEFI
-firmware, swtpm, dnsmasq, and the NAT networking dependencies. The
+firmware, swtpm, SPICE support, dnsmasq, and the NAT networking dependencies. The
 `libvirtd` service is opt-in on desktop images; the server image retains its
 existing Cockpit/libvirt configuration.
 
