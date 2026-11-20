@@ -50,6 +50,27 @@ configure_rootless_podman_ids() {
     }
     ensure_subid_mapping /etc/subuid --add-subuids
     ensure_subid_mapping /etc/subgid --add-subgids
+
+    # Rootless Podman stores this user's layers below /orundum. The first
+    # subordinate UID must be able to traverse every parent directory to the
+    # graphroot; otherwise crun cannot access overlay mount paths.
+    local graphroot subuid path
+    graphroot=$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)
+    [[ "$graphroot" == /orundum/* ]] || return 0
+    subuid=$(awk -F: -v user="$USER" '$1 == user { print $2; exit }' /etc/subuid)
+    [[ "$subuid" =~ ^[0-9]+$ ]] || {
+        echo "Could not determine the subordinate UID range for $USER." >&2
+        return 1
+    }
+    require_command setfacl
+    path="$graphroot"
+    while [[ "$path" == /orundum/* || "$path" == /orundum ]]; do
+        if [[ -d "$path" ]]; then
+            as_root setfacl -m "u:$subuid:--x" "$path"
+        fi
+        [[ "$path" == /orundum ]] && break
+        path=$(dirname "$path")
+    done
 }
 
 container_exists() {
@@ -87,7 +108,7 @@ case "${1:-status}" in
             echo "Creating the Ark development toolchain container..."
             distrobox create --name "$CONTAINER" \
                 --image docker.io/library/archlinux:latest --yes \
-                --additional-flags "--userns=keep-id:uid=0,gid=0"
+                --additional-flags "--userns=keep-id"
         fi
         install_toolchain
         install_agents
