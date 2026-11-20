@@ -22,7 +22,9 @@ Manageable features:
   podman         Enable or disable the rootless Podman API socket.
   github-runner  Register and run a repository-scoped self-hosted runner.
   solaar         Enable or disable the Logitech device manager tray app.
-  sunshine       Install and run the Sunshine game-streaming host.\n  development    Create an isolated coding toolchain and install Claude Code/Codex.\n  virtualization Manage local QEMU/KVM virtual machines through libvirt.
+  sunshine       Install and run the Sunshine game-streaming host.
+  development    Create an isolated coding toolchain and install Claude Code/Codex.
+  virtualization Manage local QEMU/KVM virtual machines through libvirt.
 
 Included base capabilities:
   distrobox      Already included in Ark desktop images; no daemon to enable.
@@ -33,7 +35,11 @@ Examples:
   ark podman enable
   ark github-runner enable
   ark solaar enable
-  ark sunshine enable\n  ark development enable\n  ark virtualization enable\n  ark virtualization list\n  ark virtualization start my-vm
+  ark sunshine enable
+  ark development enable
+  ark virtualization enable
+  ark virtualization list
+  ark virtualization start my-vm
 EOF
 }
 
