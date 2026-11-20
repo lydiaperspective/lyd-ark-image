@@ -76,7 +76,29 @@ else:
 path.write_text("\n".join(lines) + "\n")
 PY
 
-grep -Eq '^DefaultBackend=bootc$' "$CONFIG"
+grep -Eq '^DefaultBackend=bootc
+# Validate the helper syntax without writing bytecode into the system image.
+python -c "from pathlib import Path; p=Path('$HELPER'); compile(p.read_text(), str(p), 'exec')"
+
+echo "Lyd Ark: PackageKit-bootc backend installed and selected."
+ "$CONFIG"
+
+# Arch disables PackageKit activation on OSTree systems by default. Lyd Ark
+# uses bootc/OSTree, so replace that condition with an explicit bootc check.
+PACKAGEKIT_UNIT=/usr/lib/systemd/system/packagekit.service
+PACKAGEKIT_DROPIN_DIR=/usr/lib/systemd/system/packagekit.service.d
+if [[ ! -s "$PACKAGEKIT_UNIT" ]]; then
+    echo "PackageKit systemd service unit is missing; cannot configure bootc activation." >&2
+    exit 1
+fi
+install -d "$PACKAGEKIT_DROPIN_DIR"
+cat > "$PACKAGEKIT_DROPIN_DIR/10-lyd-ark-bootc.conf" <<'EOF'
+[Unit]
+ConditionPathExists=
+ConditionPathExists=/run/ostree-booted
+EOF
+grep -Fq 'ConditionPathExists=/run/ostree-booted' "$PACKAGEKIT_DROPIN_DIR/10-lyd-ark-bootc.conf"
+
 
 # Validate the helper syntax without writing bytecode into the system image.
 python -c "from pathlib import Path; p=Path('$HELPER'); compile(p.read_text(), str(p), 'exec')"
