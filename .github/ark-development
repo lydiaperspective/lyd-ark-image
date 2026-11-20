@@ -40,7 +40,7 @@ case "${1:-status}" in
         require_command distrobox
         require_command podman
         if ! container_exists; then
-            echo "Creating the isolated Ark development environment..."
+            echo "Creating the Ark development toolchain container..."
             distrobox create --name "$CONTAINER" \
                 --image docker.io/library/archlinux:latest --yes
         fi
