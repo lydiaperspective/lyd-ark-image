@@ -14,7 +14,7 @@ Usage:
   ark feature enable FEATURE
   ark feature disable FEATURE
   ark feature unregister github-runner
-  ark steam|tailscale|podman|distrobox|github-runner status|enable|disable
+  ark steam|tailscale|podman|distrobox|github-runner|solaar|sunshine status|enable|disable
 
 Manageable features:
   steam          Install or remove Steam as a system Flatpak.
