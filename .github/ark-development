@@ -75,14 +75,23 @@ case "${1:-status}" in
         if container_exists; then
             echo "Ark development container: present"
             distrobox list --no-color | grep -F "$CONTAINER" || true
+            distrobox enter --name "$CONTAINER" -- bash -lc '
+                for tool in git gh node npm python rustc cargo cmake ninja clang; do
+                    if command -v "$tool" >/dev/null 2>&1; then
+                        printf "%s: available in development container\\n" "$tool"
+                    else
+                        printf "%s: missing from development container\\n" "$tool"
+                    fi
+                done
+            '
         else
             echo "Ark development container: absent"
         fi
-        for tool in claude codex git gh node npm python rustc cargo cmake ninja clang; do
+        for tool in claude codex; do
             if command -v "$tool" >/dev/null 2>&1; then
-                printf '%s: available\n' "$tool"
+                printf '%s: available on host PATH\\n' "$tool"
             else
-                printf '%s: not available on host PATH\n' "$tool"
+                printf '%s: not installed for this user\\n' "$tool"
             fi
         done
         ;;
