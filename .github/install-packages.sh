@@ -63,6 +63,9 @@ else
         plasma-integration plasma-keyboard plasma-nm plasma-pa plasma-systemmonitor plasma-thunderbolt \
         plasma-vault plasma-welcome polkit-kde-agent powerdevil print-manager spectacle systemsettings \
         xdg-desktop-portal-kde breeze-cursors plasma-workspace-wallpapers plymouth-kcm solaar
+    /usr/bin/pacman -Q qemu-full libvirt virt-manager virt-viewer dnsmasq iptables-nft edk2-ovmf swtpm
+    test -x /usr/libexec/ark/ark-development
+    test -x /usr/libexec/ark/ark-virtualization
     ! /usr/bin/pacman -Qq | grep -qx sddm
     test -s /usr/lib/systemd/system/plasmalogin.service
     test -s /usr/lib/systemd/user/ark-solaar.service
