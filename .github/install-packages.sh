@@ -65,6 +65,8 @@ else
         xdg-desktop-portal-kde breeze-cursors plasma-workspace-wallpapers plymouth-kcm solaar
     ! /usr/bin/pacman -Qq | grep -qx sddm
     test -s /usr/lib/systemd/system/plasmalogin.service
+    test -s /usr/lib/systemd/user/ark-solaar.service
+    test -s /usr/lib/systemd/user/ark-sunshine.service
     test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
     test -x /usr/share/PackageKit/helpers/bootc/bootcBackend.py
     grep -Eq '^DefaultBackend=bootc$' /etc/PackageKit/PackageKit.conf
