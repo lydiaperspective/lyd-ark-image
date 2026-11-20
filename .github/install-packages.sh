@@ -57,7 +57,12 @@ if [[ "${VARIANT:-}" == "intel3-server-lts" ]]; then
         exit 1
     fi
 else
-    /usr/bin/pacman -Q discover packagekit packagekit-qt6 plasma-login-manager
+    /usr/bin/pacman -Q discover packagekit packagekit-qt6 plasma-meta plasma-desktop plasma-workspace kwin kscreen plasma-login-manager \
+        bluedevil kde-cli-tools kde-gtk-config kdeplasma-addons kglobalacceld kinfocenter kmenuedit kpipewire \
+        kscreenlocker ksystemstats kwallet-pam plasma-browser-integration plasma-disks plasma-firewall \
+        plasma-integration plasma-keyboard plasma-nm plasma-pa plasma-systemmonitor plasma-thunderbolt \
+        plasma-vault plasma-welcome polkit-kde-agent powerdevil print-manager spectacle systemsettings \
+        xdg-desktop-portal-kde
     ! /usr/bin/pacman -Qq | grep -qx sddm
     test -s /usr/lib/systemd/system/plasmalogin.service
     test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
