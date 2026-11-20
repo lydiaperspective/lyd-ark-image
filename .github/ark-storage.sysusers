@@ -1,0 +1,4 @@
+# Lyd Ark shared storage and GPU device access groups
+g ark -
+g video -
+g render -
