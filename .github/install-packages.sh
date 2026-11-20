@@ -62,7 +62,7 @@ else
         kscreenlocker ksystemstats kwallet-pam plasma-browser-integration plasma-disks plasma-firewall \
         plasma-integration plasma-keyboard plasma-nm plasma-pa plasma-systemmonitor plasma-thunderbolt \
         plasma-vault plasma-welcome polkit-kde-agent powerdevil print-manager spectacle systemsettings \
-        xdg-desktop-portal-kde
+        xdg-desktop-portal-kde breeze-cursors plasma-workspace-wallpapers plymouth-kcm
     ! /usr/bin/pacman -Qq | grep -qx sddm
     test -s /usr/lib/systemd/system/plasmalogin.service
     test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so
