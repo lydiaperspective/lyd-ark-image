@@ -83,12 +83,13 @@ available without starting its daemon on every desktop boot.
 
 Run `ark development enable` to create a user-owned Arch Linux Distrobox
 named `ark-development`. It contains base-devel, Git/Git LFS, GitHub CLI,
-Node.js/npm, Python/pip, Rust, C/C++ tooling, CMake, Ninja, and pkgconf.
+Node.js/npm, Python/pip, Rust, C/C++ tooling, CMake, Ninja, debugging utilities, shell linters, and code-search tools.
 The feature also installs Claude Code and OpenAI Codex CLI using their
 vendor-provided user-level installers.
 
 The Distrobox container provides a mutable development toolchain without
-adding the compilers and SDKs to the immutable host image. Projects and
+adding the compilers and SDKs to the immutable host image. Enabling it also
+ensures the user has subordinate UID/GID mappings required by rootless Podman. Projects and
 credentials remain in the user's home directory. Commands:
 
 ```bash
