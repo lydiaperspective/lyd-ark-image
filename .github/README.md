@@ -94,6 +94,7 @@ credentials remain in the user's home directory. Commands:
 ```bash
 ark development enable
 ark development status
+ark development shell
 ark development update
 ark development disable
 ```
