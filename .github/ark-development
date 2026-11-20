@@ -10,6 +10,48 @@ require_command() {
     }
 }
 
+as_root() {
+    if [[ $EUID -eq 0 ]]; then
+        "$@"
+    else
+        require_command sudo
+        sudo "$@"
+    fi
+}
+
+next_subid_range() {
+    local database="$1"
+    local first=100000
+    local last
+    while true; do
+        last=$((first + 65535))
+        if ! awk -F: -v first="$first" -v last="$last" '$2 <= last && ($2 + $3 - 1) >= first { found=1 } END { exit !found }' "$database" 2>/dev/null; then
+            printf '%s-%s' "$first" "$last"
+            return
+        fi
+        first=$((first + 65536))
+    done
+}
+
+ensure_subid_mapping() {
+    local database="$1"
+    local option="$2"
+    if ! awk -F: -v user="$USER" '$1 == user { found=1 } END { exit !found }' "$database" 2>/dev/null; then
+        local range
+        range=$(next_subid_range "$database")
+        as_root usermod "$option" "$range" "$USER"
+    fi
+}
+
+configure_rootless_podman_ids() {
+    [[ $EUID -ne 0 ]] || {
+        echo "Run 'ark development enable' as your normal desktop user, not as root." >&2
+        exit 1
+    }
+    ensure_subid_mapping /etc/subuid --add-subuids
+    ensure_subid_mapping /etc/subgid --add-subgids
+}
+
 container_exists() {
     distrobox list --no-color 2>/dev/null | grep -Fq "$CONTAINER"
 }
@@ -40,6 +82,7 @@ case "${1:-status}" in
     enable)
         require_command distrobox
         require_command podman
+        configure_rootless_podman_ids
         if ! container_exists; then
             echo "Creating the Ark development toolchain container..."
             distrobox create --name "$CONTAINER" \
