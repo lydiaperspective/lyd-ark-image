@@ -96,7 +96,7 @@ jobs:
         run: |
           printf '%s' "$GH_TOKEN" | $PODMAN login ghcr.io -u "${ github.actor }" --password-stdin
 
-      - name: Build and publish required userspace base
+      - name: Build required userspace base locally
         env:
           BASE_TAG: ${ steps.profile.outputs.base }
           VARIANT: ${ inputs.variant }
@@ -109,7 +109,6 @@ jobs:
             --build-arg CARRIER_SHA="$CARRIER_SHA" \
             --build-arg CARRIER_URL="$CARRIER_URL" \
             -t "$IMAGE" -f .github/Containerfile .github/
-          $PODMAN push "$IMAGE"
 
       - name: Restore downloaded Ark package bundle
         id: aur-package-cache
@@ -158,7 +157,7 @@ jobs:
           cat pacman-cache-parts/pacman-cache.tar.gz.part-* | tar -xzf - -C .github/pacman-cache/
           rm -rf pacman-cache-parts
 
-      - name: Build and publish required kernel image
+      - name: Build required kernel image locally
         env:
           BASE_TAG: ${ steps.profile.outputs.base }
           KERNEL_TAG: ${ steps.profile.outputs.kernel }
