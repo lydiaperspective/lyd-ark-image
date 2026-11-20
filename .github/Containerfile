@@ -57,6 +57,16 @@ RUN set -e; \
         bash /tmp/build-packagekit-bootc.sh; \
         pacman -Rns --noconfirm gcc meson ninja pkgconf; \
     fi; \
+    # Distrobox 1.8.2.5 emits an invalid :ro:rslave volume option with Podman. \
+    # Upstream fix: https://github.com/89luca89/distrobox/pull/2086 \
+    if grep -Fq ':ro${rslave}' /usr/bin/distrobox-create; then \
+        sed -i 's/:ro${rslave}/:ro,${rslave}/' /usr/bin/distrobox-create; \
+    fi; \
+    if grep -Fq ':ro${rslave}' /usr/bin/distrobox-create; then \
+        echo "ERROR: Distrobox still contains the invalid read-only slave mount syntax." >&2; \
+        exit 1; \
+    fi; \
+    bash -n /usr/bin/distrobox-create; \
     rm -f /tmp/build-packagekit-bootc.sh /tmp/patch-packagekit-bootc.py; \
     sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen; \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf; \
