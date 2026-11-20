@@ -62,8 +62,8 @@ case "${1:-status}" in
         require_command distrobox
         if container_exists; then
             echo "Removing the Ark development container..."
-            distrobox stop --name "$CONTAINER" 2>/dev/null || true
-            distrobox rm --name "$CONTAINER" --force
+            distrobox stop "$CONTAINER" 2>/dev/null || true
+            distrobox rm "$CONTAINER" --force
         else
             echo "Ark development container is already disabled."
         fi
