@@ -1,0 +1,16 @@
+[Unit]
+Description=Install the default Waterfox browser from Flathub
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=!/var/lib/ark-installer/waterfox-installed
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/ark/install-waterfox
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
