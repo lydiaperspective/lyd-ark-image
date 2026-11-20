@@ -86,7 +86,8 @@ case "${1:-status}" in
         if ! container_exists; then
             echo "Creating the Ark development toolchain container..."
             distrobox create --name "$CONTAINER" \
-                --image docker.io/library/archlinux:latest --yes
+                --image docker.io/library/archlinux:latest --yes \
+                --additional-flags "--userns=keep-id:uid=0,gid=0"
         fi
         install_toolchain
         install_agents
