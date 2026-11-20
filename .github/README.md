@@ -46,13 +46,13 @@ For targeted testing, there are seven individually named **full payload** workfl
 
 | Actions workflow | Final image |
 |---|---|
-| **Build Full Payload - Intel Standard Desktop** | `intel-modern` |
-| **Build Full Payload - Intel Apex Desktop** | `intel-modern-apex` |
-| **Build Full Payload - NVIDIA Open Standard Desktop** | `ark-nvidia-open` |
-| **Build Full Payload - NVIDIA Open Apex Desktop** | `ark-apex-nvidia-open` |
-| **Build Full Payload - NVIDIA 580 Standard Desktop** | `ark-nvidia-580` |
-| **Build Full Payload - NVIDIA 580 Apex Desktop** | `ark-apex-nvidia-580` |
-| **Build Full Payload - Intel Server LTS** | `intel3-server-lts` |
+| [Build Full Payload - Intel Standard Desktop](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-intel-modern.yml) | `intel-modern` |
+| [Build Full Payload - Intel Apex Desktop](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-intel-modern-apex.yml) | `intel-modern-apex` |
+| [Build Full Payload - NVIDIA Open Standard Desktop](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-ark-nvidia-open.yml) | `ark-nvidia-open` |
+| [Build Full Payload - NVIDIA Open Apex Desktop](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-ark-apex-nvidia-open.yml) | `ark-apex-nvidia-open` |
+| [Build Full Payload - NVIDIA 580 Standard Desktop](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-ark-nvidia-580.yml) | `ark-nvidia-580` |
+| [Build Full Payload - NVIDIA 580 Apex Desktop](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-ark-apex-nvidia-580.yml) | `ark-apex-nvidia-580` |
+| [Build Full Payload - Intel Server LTS](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-full-intel3-server-lts.yml) | `intel3-server-lts` |
 
 All seven use the shared `.github/workflows/build-single-final-payload.yml` implementation. They serialize with the other image-release workflows because the existing full pipeline publishes shared image tags. Package downloads and the prebuilt Pacman package cache are retained in GitHub Actions cache by release identity. The separate agent development environment job no longer blocks base-image builds; it runs independently.
 
