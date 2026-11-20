@@ -1,0 +1,29 @@
+name: Build Full Payload - Intel Apex Desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Where to run the build
+        type: choice
+        required: true
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
+
+concurrency:
+  group: lyd-ark-full-payload-desktop
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build complete intel-modern-apex payload
+    uses: ./.github/workflows/build-single-final-payload.yml
+    with:
+      variant: intel-modern-apex
+      runner: ${{ inputs.runner }}
