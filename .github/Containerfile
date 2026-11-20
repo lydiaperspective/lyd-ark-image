@@ -276,7 +276,14 @@ ARG VARIANT
 RUN set -e; \
     if [[ "$VARIANT" == *"-nvidia-580" ]]; then \
         # The legacy proprietary 580xx stack is sourced only from CachyOS.
-        # Bootstrap its signing key, then install the DKMS driver and matching userspace.
+        # Remove standard NVIDIA packages inherited from the kernel image first;
+        # they conflict with the matching 580xx userspace packages.
+        conflicting_nvidia=(); \
+        for pkg in nvidia-open-dkms nvidia-utils nvidia-settings lib32-nvidia-utils; do \
+            if pacman -Q "$pkg" >/dev/null 2>&1; then conflicting_nvidia+=("$pkg"); fi; \
+        done; \
+        if (('${#conflicting_nvidia[@]}')); then pacman -Rdd --noconfirm "${conflicting_nvidia[@]}"; fi; \
+        # Bootstrap the CachyOS signing key before installing the driver stack.
         printf '\n[cachyos]\nSigLevel = Never\nServer = https://mirror.cachyos.org/repo/$arch/$repo\n' >> /etc/pacman.conf; \
         pacman-key --init; \
         pacman -Sy --noconfirm cachyos-keyring; \
