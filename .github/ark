@@ -305,15 +305,6 @@ sunshine_action() {
     esac
 }
 
-development_action() {
-    /usr/libexec/ark/ark-development "$1"
-}
-
-virtualization_action() {
-    shift
-    /usr/libexec/ark/ark-virtualization "$@"
-}
-
 run_feature() {
     local action="$1"
     local feature="$2"
