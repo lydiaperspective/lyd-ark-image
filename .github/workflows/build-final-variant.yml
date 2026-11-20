@@ -1,0 +1,144 @@
+name: Build Individual Lyd Ark Final Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Final image variant to build"
+        type: choice
+        required: true
+        default: ark-nvidia-580
+        options:
+          - intel-modern
+          - intel-modern-apex
+          - ark-nvidia-open
+          - ark-apex-nvidia-open
+          - ark-nvidia-580
+          - ark-apex-nvidia-580
+          - intel3-server-lts
+      runner:
+        description: "Where to run the image build"
+        type: choice
+        required: true
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
+
+# Serialize builds only when they publish the same final tag.
+concurrency:
+  group: lyd-ark-final-${{ inputs.variant }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-final:
+    name: Build ${{ inputs.variant }}
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Free disk space
+        if: inputs.runner != 'self-hosted'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Prepare Podman
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            command -v podman >/dev/null || {
+              echo "Install rootless Podman on the self-hosted runner first." >&2
+              exit 1
+            }
+          else
+            sudo apt-get update
+            sudo apt-get install -y podman
+          fi
+
+      - name: Select matching published kernel image
+        id: kernel
+        env:
+          VARIANT: ${{ inputs.variant }}
+        run: |
+          case "$VARIANT" in
+            intel-modern|ark-nvidia-open|ark-nvidia-580)
+              KERNEL=kernel-desktop-standard
+              ;;
+            intel-modern-apex|ark-apex-nvidia-open|ark-apex-nvidia-580)
+              KERNEL=kernel-desktop-apex
+              ;;
+            intel3-server-lts)
+              KERNEL=kernel-server-lts
+              ;;
+            *)
+              echo "Unsupported image variant: $VARIANT" >&2
+              exit 1
+              ;;
+          esac
+          echo "tag=$KERNEL" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            PODMAN=(podman)
+          else
+            PODMAN=(sudo podman)
+          fi
+          printf '%s' "$GH_TOKEN" | "${PODMAN[@]}" login ghcr.io \
+            -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull prerequisite kernel image
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            PODMAN=(podman)
+          else
+            PODMAN=(sudo podman)
+          fi
+          "${PODMAN[@]}" pull \
+            "ghcr.io/${{ github.repository }}:${{ steps.kernel.outputs.tag }}"
+
+      - name: Build and lint selected final image
+        env:
+          VARIANT: ${{ inputs.variant }}
+          KERNEL_TAG: ${{ steps.kernel.outputs.tag }}
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            PODMAN=(podman)
+          else
+            PODMAN=(sudo podman)
+          fi
+
+          IMAGE="ghcr.io/${{ github.repository }}:$VARIANT"
+          "${PODMAN[@]}" build \
+            --build-arg KERNEL_IMAGE="ghcr.io/${{ github.repository }}:$KERNEL_TAG" \
+            --build-arg VARIANT="$VARIANT" \
+            -t "$IMAGE" \
+            -f .github/Containerfile .github/
+
+          "${PODMAN[@]}" run --rm --entrypoint /usr/bin/bootc \
+            "$IMAGE" container lint
+
+      - name: Publish selected final image
+        env:
+          VARIANT: ${{ inputs.variant }}
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            PODMAN=(podman)
+          else
+            PODMAN=(sudo podman)
+          fi
+          "${PODMAN[@]}" push --compression-format zstd:chunked \
+            "ghcr.io/${{ github.repository }}:$VARIANT"
