@@ -73,7 +73,7 @@ elif "[Daemon]" in lines:
 else:
     lines.extend(["", "[Daemon]", "DefaultBackend=bootc"])
 
-path.write_text("\\n".join(lines) + "\\n")
+path.write_text("\n".join(lines) + "\n")
 PY
 
 grep -Fqx 'DefaultBackend=bootc' "$CONFIG"
