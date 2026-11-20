@@ -73,15 +73,10 @@ elif "[Daemon]" in lines:
 else:
     lines.extend(["", "[Daemon]", "DefaultBackend=bootc"])
 
-path.write_text("\n".join(lines) + "\n")
+path.write_text("\\n".join(lines) + "\\n")
 PY
 
-grep -Eq '^DefaultBackend=bootc
-# Validate the helper syntax without writing bytecode into the system image.
-python -c "from pathlib import Path; p=Path('$HELPER'); compile(p.read_text(), str(p), 'exec')"
-
-echo "Lyd Ark: PackageKit-bootc backend installed and selected."
- "$CONFIG"
+grep -Fqx 'DefaultBackend=bootc' "$CONFIG"
 
 # Arch disables PackageKit activation on OSTree systems by default. Lyd Ark
 # uses bootc/OSTree, so replace that condition with an explicit bootc check.
@@ -98,7 +93,6 @@ ConditionPathExists=
 ConditionPathExists=/run/ostree-booted
 EOF
 grep -Fq 'ConditionPathExists=/run/ostree-booted' "$PACKAGEKIT_DROPIN_DIR/10-lyd-ark-bootc.conf"
-
 
 # Validate the helper syntax without writing bytecode into the system image.
 python -c "from pathlib import Path; p=Path('$HELPER'); compile(p.read_text(), str(p), 'exec')"
