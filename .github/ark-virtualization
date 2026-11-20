@@ -48,10 +48,6 @@ status() {
 enable() {
     require_command systemctl
     require_command virsh
-    if ! getent group libvirt >/dev/null 2>&1; then
-        as_root groupadd --system libvirt
-    fi
-    as_root usermod -aG libvirt "$USER"
     as_root systemctl enable --now libvirtd.service
 
     if ! as_root virsh net-info default >/dev/null 2>&1; then
@@ -67,7 +63,7 @@ enable() {
     fi
 
     echo "Virtualization is enabled."
-    echo "Your account was added to the libvirt group; log out and back in before using virt-manager without sudo."
+    echo "virt-manager uses the desktop's Polkit authentication for system-wide VM management."
     if [[ ! -e /dev/kvm ]]; then
         echo "Warning: /dev/kvm is unavailable. VMs may be limited to slow software emulation."
     fi
@@ -88,7 +84,7 @@ disable() {
     fi
     as_root systemctl disable --now libvirtd.service
     echo "Virtualization services disabled. VM definitions and disk images were retained."
-    echo "Your libvirt group membership was retained and can be removed manually if desired."
+    echo "VM definitions, disk images, and network configuration were retained."
 }
 
 list_vms() {
