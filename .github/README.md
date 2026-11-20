@@ -99,7 +99,9 @@ ark development update
 ark development disable
 ```
 
-Distrobox integrates with the host and shares the user's home directory; it is a mutable toolchain environment, not a security sandbox. Claude Code and Codex run as the logged-in user and should be treated as having access to that user's files.\n\nDisabling removes the `ark-development` container but deliberately retains
+Distrobox integrates with the host and shares the user's home directory; it is a mutable toolchain environment, not a security sandbox. Claude Code and Codex run as the logged-in user and should be treated as having access to that user's files.
+
+Disabling removes the `ark-development` container but deliberately retains
 user projects, agent credentials/configuration, and the user-installed
 Claude Code/Codex executables.
 
