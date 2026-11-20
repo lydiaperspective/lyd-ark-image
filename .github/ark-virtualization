@@ -38,10 +38,14 @@ status() {
     else
         echo "KVM acceleration: unavailable; check firmware virtualization settings and host support"
     fi
-    if as_root virsh net-info default >/dev/null 2>&1; then
-        as_root virsh net-info default
+    if systemctl is-active --quiet libvirtd.service; then
+        if as_root virsh net-info default >/dev/null 2>&1; then
+            as_root virsh net-info default
+        else
+            echo "Default NAT network: not defined"
+        fi
     else
-        echo "Default NAT network: not defined"
+        echo "Default NAT network: not checked while libvirtd is inactive"
     fi
 }
 
