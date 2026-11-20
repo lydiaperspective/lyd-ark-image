@@ -31,7 +31,7 @@ RUN set -e; \
     pacman -Syu --noconfirm; \
     if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
         pacman -S --noconfirm \
-            base glibc linux-firmware networkmanager mkinitcpio openssh tailscale \
+            base glibc inetutils linux-firmware networkmanager mkinitcpio openssh tailscale \
             cockpit cockpit-podman cockpit-storaged cockpit-files cockpit-machines cockpit-pacman \
             udisks2 pcp \
             tuned tuned-ppd \
