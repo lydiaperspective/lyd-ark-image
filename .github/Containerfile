@@ -125,6 +125,12 @@ COPY ark-bls-sync.service /usr/lib/systemd/system/ark-bls-sync.service
 RUN chmod +x /usr/libexec/ark/bls-sync.sh && \
     systemctl enable ark-bls-sync.service
 
+# Layer 5b: Standardized Lyd Ark storage paths and shared admin access.
+COPY ark-storage.sysusers /usr/lib/sysusers.d/ark-storage.conf
+COPY ark-storage.tmpfiles /usr/lib/tmpfiles.d/ark-storage.conf
+RUN systemd-sysusers /usr/lib/sysusers.d/ark-storage.conf && \
+    systemd-tmpfiles --create /usr/lib/tmpfiles.d/ark-storage.conf
+
 # Layer 6: Orundum (container storage subvolume)
 COPY ark-orundum.conf /usr/lib/tmpfiles.d/ark-orundum.conf
 RUN mkdir -p /orundum /etc/skel/.local/share
