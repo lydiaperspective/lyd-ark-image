@@ -1,0 +1,13 @@
+[Unit]
+Description=Sunshine self-hosted game streaming host
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/flatpak run --system dev.lizardbyte.sunshine
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target
