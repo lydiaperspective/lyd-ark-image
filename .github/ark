@@ -2,6 +2,7 @@
 set -euo pipefail
 
 APP_ID_STEAM="com.valvesoftware.Steam"
+APP_ID_SUNSHINE="dev.lizardbyte.sunshine"
 
 usage() {
     cat <<'EOF'
@@ -20,6 +21,8 @@ Manageable features:
   tailscale      Enable or disable the Tailscale system service.
   podman         Enable or disable the rootless Podman API socket.
   github-runner  Register and run a repository-scoped self-hosted runner.
+  solaar         Enable or disable the Logitech device manager tray app.
+  sunshine       Install and run the Sunshine game-streaming host.
 
 Included base capabilities:
   distrobox      Already included in Ark desktop images; no daemon to enable.
@@ -29,6 +32,8 @@ Examples:
   ark tailscale enable
   ark podman enable
   ark github-runner enable
+  ark solaar enable
+  ark sunshine enable
 EOF
 }
 
@@ -241,6 +246,65 @@ EOF
     esac
 }
 
+solaar_action() {
+    require_command systemctl
+    case "$1" in
+        enable)
+            require_command solaar
+            systemctl --user enable --now ark-solaar.service
+            ;;
+        disable)
+            if systemctl --user is-enabled --quiet ark-solaar.service 2>/dev/null || \
+               systemctl --user is-active --quiet ark-solaar.service; then
+                systemctl --user disable --now ark-solaar.service
+            else
+                echo "Solaar autostart is already disabled."
+            fi
+            ;;
+        status)
+            if systemctl --user is-active --quiet ark-solaar.service; then
+                echo "Solaar: active for this user"
+            else
+                echo "Solaar: inactive (use 'ark solaar enable' to start it at login)"
+            fi
+            ;;
+    esac
+}
+
+sunshine_action() {
+    require_command flatpak
+    require_command systemctl
+    case "$1" in
+        enable)
+            echo "Installing Sunshine system-wide from Flathub..."
+            as_root flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+            as_root flatpak install --system --noninteractive --assumeyes --or-update flathub "$APP_ID_SUNSHINE"
+            systemctl --user enable --now ark-sunshine.service
+            ;;
+        disable)
+            systemctl --user disable --now ark-sunshine.service 2>/dev/null || true
+            if flatpak info --system "$APP_ID_SUNSHINE" >/dev/null 2>&1; then
+                echo "Removing Sunshine. Its user configuration is retained."
+                as_root flatpak uninstall --system --noninteractive --assumeyes "$APP_ID_SUNSHINE"
+            else
+                echo "Sunshine is not installed."
+            fi
+            ;;
+        status)
+            if flatpak info --system "$APP_ID_SUNSHINE" >/dev/null 2>&1; then
+                echo "Sunshine: installed (system Flatpak)"
+            else
+                echo "Sunshine: not installed"
+            fi
+            if systemctl --user is-active --quiet ark-sunshine.service; then
+                echo "Sunshine service: active"
+            else
+                echo "Sunshine service: inactive"
+            fi
+            ;;
+    esac
+}
+
 run_feature() {
     local action="$1"
     local feature="$2"
@@ -250,6 +314,8 @@ run_feature() {
         podman) podman_action "$action" ;;
         distrobox) distrobox_action "$action" ;;
         github-runner) github_runner_action "$action" ;;
+        solaar) solaar_action "$action" ;;
+        sunshine) sunshine_action "$action" ;;
         *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
     esac
 }
@@ -265,6 +331,8 @@ Manageable:
   tailscale      Optional system service
   podman         Optional rootless API socket
   github-runner  Optional repository-scoped runner service
+  solaar         Optional Logitech device tray app
+  sunshine       Optional game-streaming host (system Flatpak)
 
 Included in the desktop base:
   distrobox      Always available; no service toggle
@@ -279,6 +347,8 @@ EOF
                 podman_action status
                 distrobox_action status
                 github_runner_action status
+                solaar_action status
+                sunshine_action status
             fi
             ;;
         enable|disable|unregister)
