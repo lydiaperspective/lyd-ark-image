@@ -61,11 +61,14 @@ unset PASSWORD PASSWORD_CONFIRM
 }
 
 printf '\nCreating your administrator account...\n'
-useradd --create-home --groups wheel --shell /bin/bash \
+useradd --create-home --groups wheel,ark,video,render --shell /bin/bash \
     --comment "$FULL_NAME" --password "$PASSWORD_HASH" "$USERNAME"
 
 id "$USERNAME" >/dev/null
 id -nG "$USERNAME" | tr ' ' '\n' | grep -qx wheel
+for group in ark video render; do
+    id -nG "$USERNAME" | tr ' ' '\n' | grep -qx "$group"
+done
 
 install -d -m 0755 /var/lib/ark-installer
 install -m 0644 /dev/null /var/lib/ark-installer/account-created
