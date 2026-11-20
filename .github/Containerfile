@@ -13,6 +13,8 @@ LABEL containers.bootc="1"
 # Reproducibly build the bootc-aware PackageKit backend for KDE Discover.
 COPY build-packagekit-bootc.sh /tmp/build-packagekit-bootc.sh
 COPY patch-packagekit-bootc.py /tmp/patch-packagekit-bootc.py
+COPY install-waterfox /usr/libexec/ark/install-waterfox
+COPY ark-waterfox-install.service /usr/lib/systemd/system/ark-waterfox-install.service
 
 # Layer 1: Base system packages (no kernel — variant-independent)
 RUN set -e; \
@@ -46,8 +48,6 @@ RUN set -e; \
             qemu-full libvirt virt-manager dnsmasq iptables-nft edk2-ovmf swtpm \
             fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
             slirp4netns passt fuse-overlayfs catatonit; \
-        flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; \
-        flatpak install --system --noninteractive --assumeyes flathub net.waterfox.waterfox; \
         chmod 0755 /tmp/build-packagekit-bootc.sh; \
         bash /tmp/build-packagekit-bootc.sh; \
         pacman -Rns --noconfirm gcc meson ninja pkgconf; \
@@ -86,7 +86,8 @@ RUN set -e; \
         mkdir -p /etc/ssh/sshd_config.d; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
-        systemctl enable plasmalogin NetworkManager tuned tuned-ppd libvirtd.service; \
+        chmod 0755 /usr/libexec/ark/install-waterfox; \
+        systemctl enable plasmalogin NetworkManager tuned tuned-ppd libvirtd.service ark-waterfox-install.service; \
         glib-compile-schemas /usr/share/glib-2.0/schemas/; \
     fi; \
     mkdir -p /etc/sudoers.d; \
