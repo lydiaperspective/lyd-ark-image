@@ -22,7 +22,7 @@ COPY ark-virtualization /usr/libexec/ark/ark-virtualization
 
 # Ensure libvirt's encrypted-secret key destination exists before its first-boot generator runs.
 RUN mkdir -p /usr/lib/systemd/system/virt-secret-init-encryption.service.d && \
-    printf '%s\\n' '[Service]' 'ExecStartPre=/usr/bin/install -d -m 0700 -o root -g root /var/lib/libvirt/secrets' > /usr/lib/systemd/system/virt-secret-init-encryption.service.d/10-ark-secret-directory.conf
+    printf '%s\n' '[Service]' 'ExecStartPre=/usr/bin/install -d -m 0700 -o root -g root /var/lib/libvirt/secrets' > /usr/lib/systemd/system/virt-secret-init-encryption.service.d/10-ark-secret-directory.conf
 
 # Layer 1: Base system packages (no kernel — variant-independent)
 RUN set -e; \
