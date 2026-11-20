@@ -296,6 +296,8 @@ RUN set -e; \
             cachyos/nvidia-580xx-settings cachyos/lib32-nvidia-580xx-utils; \
         KVER=$(ls -1 /usr/lib/modules | grep -v extramodules | head -n1); \
         dkms autoinstall -k "$KVER"; \
+        pacman -Q nvidia-580xx-dkms nvidia-580xx-utils nvidia-580xx-settings lib32-nvidia-580xx-utils; \
+        grep -Eq '^options nvidia_drm modeset=1([[:space:]]|$)' /etc/modprobe.d/nvidia.conf; \
         # Do not leave CachyOS enabled in the installed system.
         sed -i '/^\[cachyos\]/,/^$/d' /etc/pacman.conf; \
         pacman -Scc --noconfirm; \
