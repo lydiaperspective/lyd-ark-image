@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly APP_ID="net.waterfox.waterfox"
+readonly MARKER="/var/lib/ark-installer/waterfox-installed"
+
+# Flatpak system deployments live under /var, which is mutable state on bootc.
+# Install Waterfox on the running system instead of baking it into the image.
+flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --system --noninteractive --assumeyes --or-update flathub "$APP_ID"
+
+# Do not mark success until the exported desktop launcher is present.
+test -f "/var/lib/flatpak/exports/share/applications/${APP_ID}.desktop"
+install -d -m 0755 "$(dirname "$MARKER")"
+install -m 0644 /dev/null "$MARKER"
+
+echo "Lyd Ark: Waterfox is installed and its desktop launcher is available."
