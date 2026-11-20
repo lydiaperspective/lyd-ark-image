@@ -14,7 +14,7 @@ Usage:
   ark feature enable FEATURE
   ark feature disable FEATURE
   ark feature unregister github-runner
-  ark steam|tailscale|podman|distrobox|github-runner|solaar|sunshine|development|virtualization ACTION [ARGS]
+  ark steam|tailscale|podman|distrobox|github-runner|solaar|sunshine|printing|development|virtualization ACTION [ARGS]
 
 Manageable features:
   steam          Install or remove Steam as a system Flatpak.
@@ -23,6 +23,7 @@ Manageable features:
   github-runner  Register and run a repository-scoped self-hosted runner.
   solaar         Enable or disable the Logitech device manager tray app.
   sunshine       Install and run the Sunshine game-streaming host.
+  printing      Enable or disable printing and scanner services.
   development    Create a containerized coding toolchain and install Claude Code/Codex.
   virtualization Manage local QEMU/KVM virtual machines through libvirt.
 
@@ -36,6 +37,7 @@ Examples:
   ark github-runner enable
   ark solaar enable
   ark sunshine enable
+  ark printing enable
   ark development enable
   ark development shell
   ark virtualization enable
@@ -313,6 +315,36 @@ sunshine_action() {
     esac
 }
 
+
+printing_action() {
+    require_command systemctl
+    case "$1" in
+        enable)
+            echo "Enabling printing, printer discovery, and USB scanner support..."
+            as_root systemctl enable --now cups.service avahi-daemon.service ipp-usb.service
+            echo "Printing and scanning services are enabled."
+            echo "Open System Settings > Printers to add a printer; use Skanpage to scan."
+            ;;
+        disable)
+            echo "Disabling printing and scanning background services..."
+            as_root systemctl disable --now ipp-usb.service avahi-daemon.service cups.service
+            ;;
+        status)
+            for unit in cups.service avahi-daemon.service ipp-usb.service; do
+                if systemctl is-active --quiet "$unit"; then
+                    printf '%s: active\\n' "$unit"
+                else
+                    printf '%s: inactive\\n' "$unit"
+                fi
+            done
+            ;;
+        *)
+            echo "Usage: ark printing {enable|disable|status}" >&2
+            return 2
+            ;;
+    esac
+}
+
 run_feature() {
     local action="$1"
     local feature="$2"
@@ -327,6 +359,7 @@ run_feature() {
         github-runner) github_runner_action "$action" ;;
         solaar) solaar_action "$action" ;;
         sunshine) sunshine_action "$action" ;;
+        printing) printing_action "$action" ;;
         *) echo "Unknown feature: $feature" >&2; usage; exit 2 ;;
     esac
 }
@@ -344,6 +377,7 @@ Manageable:
   github-runner  Optional repository-scoped runner service
   solaar         Optional Logitech device tray app
   sunshine       Optional game-streaming host (system Flatpak)
+  printing       Optional CUPS printing and scanner discovery services
   development    Optional Distrobox toolchain plus Claude Code/Codex
   virtualization Optional local QEMU/KVM/libvirt VM host
 
@@ -362,6 +396,7 @@ EOF
                 github_runner_action status
                 solaar_action status
                 sunshine_action status
+                printing_action status
                 /usr/libexec/ark/ark-development status
                 /usr/libexec/ark/ark-virtualization status
             fi
