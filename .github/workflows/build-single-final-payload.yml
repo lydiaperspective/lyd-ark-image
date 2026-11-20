@@ -1,0 +1,189 @@
+name: Reusable - Build One Complete Lyd Ark Image Payload
+
+on:
+  workflow_call:
+    inputs:
+      variant:
+        required: true
+        type: string
+      runner:
+        required: false
+        default: github-hosted
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build complete payload - ${ inputs.variant }
+    runs-on: ${ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Free disk space
+        if: inputs.runner != 'self-hosted'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Select matching base and kernel profiles
+        id: profile
+        env:
+          VARIANT: ${ inputs.variant }
+        run: |
+          case "$VARIANT" in
+            intel-modern)
+              PROFILE=desktop; BASE=base-desktop; KERNEL=desktop-standard; KERNEL_VARIANT=intel-modern ;;
+            intel-modern-apex)
+              PROFILE=desktop; BASE=base-desktop; KERNEL=desktop-apex; KERNEL_VARIANT=intel-modern-apex ;;
+            ark-nvidia-open|ark-nvidia-580)
+              PROFILE=desktop; BASE=base-desktop; KERNEL=desktop-standard; KERNEL_VARIANT=intel-modern ;;
+            ark-apex-nvidia-open|ark-apex-nvidia-580)
+              PROFILE=desktop; BASE=base-desktop; KERNEL=desktop-apex; KERNEL_VARIANT=intel-modern-apex ;;
+            intel3-server-lts)
+              PROFILE=server; BASE=base-server; KERNEL=server-lts; KERNEL_VARIANT=intel3-server-lts ;;
+            *)
+              echo "Unsupported final image variant: $VARIANT" >&2
+              exit 1 ;;
+          esac
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "kernel=$KERNEL" >> "$GITHUB_OUTPUT"
+          echo "kernel_variant=$KERNEL_VARIANT" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Podman and build utilities
+        run: |
+          if [ "${ inputs.runner }" = "self-hosted" ]; then
+            command -v podman >/dev/null || { echo "Install rootless Podman on the self-hosted runner." >&2; exit 1; }
+            command -v wget >/dev/null || { echo "Install wget on the self-hosted runner." >&2; exit 1; }
+            command -v curl >/dev/null || { echo "Install curl on the self-hosted runner." >&2; exit 1; }
+            PODMAN=podman
+          else
+            sudo apt-get update
+            sudo apt-get install -y podman wget
+            PODMAN="sudo podman"
+          fi
+          echo "PODMAN=$PODMAN" >> "$GITHUB_ENV"
+
+      - name: Get latest published build inputs
+        id: releases
+        env:
+          GH_TOKEN: ${ github.token }
+        run: |
+          python3 .github/download-aur-release.py --kind identity
+          CARRIER=$(gh api repos/zamkara/carrier-pkg/releases/latest)
+          echo "carrier-sha=$(printf '%s' "$CARRIER" | jq -er '.id')" >> "$GITHUB_OUTPUT"
+          echo "carrier-url=$(printf '%s' "$CARRIER" | jq -er '.assets[] | select(.name == "carrier") | .browser_download_url')" >> "$GITHUB_OUTPUT"
+          ALGA=$(gh api repos/lydiaperspective/lyd-agka/releases/latest)
+          echo "alga-sha=$(printf '%s' "$ALGA" | jq -er '.id')" >> "$GITHUB_OUTPUT"
+          echo "alga-url=$(printf '%s' "$ALGA" | jq -er '[.assets[] | select(.name | endswith(".pkg.tar.zst")) | select(.name | contains("-debug-") | not)] | if length == 1 then .[0].browser_download_url else error("Expected one Alga package release asset") end')" >> "$GITHUB_OUTPUT"
+          BACKGROUNDS=$(gh api repos/zamkara/ark-backgrounds/releases/latest)
+          echo "backgrounds-sha=$(printf '%s' "$BACKGROUNDS" | jq -er '.id')" >> "$GITHUB_OUTPUT"
+          echo "backgrounds-url=$(printf '%s' "$BACKGROUNDS" | jq -er '[.assets[] | select(.name | endswith(".pkg.tar.zst")) | select(.name | contains("-debug-") | not)] | if length == 1 then .[0].browser_download_url else error("Expected one backgrounds package release asset") end')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GH_TOKEN: ${ github.token }
+        run: |
+          printf '%s' "$GH_TOKEN" | $PODMAN login ghcr.io -u "${ github.actor }" --password-stdin
+
+      - name: Build and publish required userspace base
+        env:
+          BASE_TAG: ${ steps.profile.outputs.base }
+          VARIANT: ${ inputs.variant }
+          CARRIER_SHA: ${ steps.releases.outputs.carrier-sha }
+          CARRIER_URL: ${ steps.releases.outputs.carrier-url }
+        run: |
+          IMAGE="ghcr.io/${ github.repository }:$BASE_TAG"
+          $PODMAN build --target base \
+            --build-arg VARIANT="$VARIANT" \
+            --build-arg CARRIER_SHA="$CARRIER_SHA" \
+            --build-arg CARRIER_URL="$CARRIER_URL" \
+            -t "$IMAGE" -f .github/Containerfile .github/
+          $PODMAN push "$IMAGE"
+
+      - name: Restore downloaded Ark package bundle
+        id: aur-package-cache
+        uses: actions/cache@v4
+        with:
+          path: .github/aur-packages
+          key: ${ runner.os }-ark-packages-${ steps.releases.outputs.release-id }-${ steps.releases.outputs.alga-sha }-${ steps.releases.outputs.backgrounds-sha }
+
+      - name: Download AUR packages, Alga, and backgrounds
+        if: steps.aur-package-cache.outputs.cache-hit != 'true'
+        env:
+          ALGA_URL: ${ steps.releases.outputs.alga-url }
+          BACKGROUNDS_URL: ${ steps.releases.outputs.backgrounds-url }
+          AUR_RELEASE_ID: ${ steps.releases.outputs.release-id }
+        run: |
+          python3 .github/download-aur-release.py --kind packages \
+            --release-id "$AUR_RELEASE_ID" --destination .github/aur-packages
+          curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$ALGA_URL" \
+            -o .github/aur-packages/alga.pkg.tar.zst
+          curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$BACKGROUNDS_URL" \
+            -o .github/aur-packages/backgrounds.pkg.tar.zst
+          test -s .github/aur-packages/alga.pkg.tar.zst
+          test -s .github/aur-packages/backgrounds.pkg.tar.zst
+          ALGA_META=$($PODMAN run --rm -v "$PWD/.github/aur-packages:/packages:ro" docker.io/archlinux:latest pacman -Qp /packages/alga.pkg.tar.zst)
+          [[ "$ALGA_META" == alga\ * ]] || { echo "Unexpected installer package: $ALGA_META" >&2; exit 1; }
+
+      - name: Restore prebuilt Pacman package cache
+        id: pacman-cache
+        uses: actions/cache@v4
+        with:
+          path: .github/pacman-cache
+          key: ${ runner.os }-pacman-payload-${ steps.releases.outputs.release-id }
+          restore-keys: |
+            ${ runner.os }-pacman-payload-
+
+      - name: Download prebuilt Pacman cache on cache miss
+        if: steps.pacman-cache.outputs.cache-hit != 'true'
+        env:
+          AUR_RELEASE_ID: ${ steps.releases.outputs.release-id }
+        run: |
+          python3 .github/download-aur-release.py --kind cache \
+            --release-id "$AUR_RELEASE_ID" --destination pacman-cache-parts
+          mkdir -p .github/pacman-cache
+          cat pacman-cache-parts/pacman-cache.tar.gz.part-* | tar -xzf - -C .github/pacman-cache/
+          rm -rf pacman-cache-parts
+
+      - name: Build and publish required kernel image
+        env:
+          BASE_TAG: ${ steps.profile.outputs.base }
+          KERNEL_TAG: ${ steps.profile.outputs.kernel }
+          KERNEL_VARIANT: ${ steps.profile.outputs.kernel_variant }
+          AUR_SHA: ${ steps.releases.outputs.release-id }
+        run: |
+          IMAGE="ghcr.io/${ github.repository }:kernel-$KERNEL_TAG"
+          $PODMAN build -v "$PWD/.github/pacman-cache:/var/cache/pacman/pkg" \
+            --target kernel \
+            --build-arg BASE_IMAGE="ghcr.io/${ github.repository }:$BASE_TAG" \
+            --build-arg VARIANT="$KERNEL_VARIANT" \
+            --build-arg AUR_SHA="$AUR_SHA" \
+            -t "$IMAGE" -f .github/Containerfile .github/
+          $PODMAN push "$IMAGE"
+          if [ "${ inputs.runner }" != "self-hosted" ]; then
+            sudo chown -R "$USER:$USER" .github/pacman-cache .github/aur-packages
+          fi
+
+      - name: Build, lint, and publish selected final image
+        env:
+          VARIANT: ${ inputs.variant }
+          KERNEL_TAG: ${ steps.profile.outputs.kernel }
+        run: |
+          IMAGE="ghcr.io/${ github.repository }:$VARIANT"
+          $PODMAN build \
+            --build-arg KERNEL_IMAGE="ghcr.io/${ github.repository }:kernel-$KERNEL_TAG" \
+            --build-arg VARIANT="$VARIANT" \
+            -t "$IMAGE" -f .github/Containerfile .github/
+          $PODMAN run --rm --entrypoint /usr/bin/bootc "$IMAGE" container lint
+          $PODMAN push --compression-format zstd:chunked "$IMAGE"
