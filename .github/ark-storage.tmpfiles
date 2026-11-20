@@ -1,0 +1,6 @@
+# Standardized Lyd Ark storage root. Setgid keeps new content in the ark group.
+d /ark          2775 root ark -
+d /ark/Containers 2775 root ark -
+d /ark/Media      2775 root ark -
+d /ark/Share      2775 root ark -
+d /ark/Configs    2775 root ark -
