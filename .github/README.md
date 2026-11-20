@@ -71,7 +71,7 @@ For quick iteration, `.github/workflows/build-final-variant.yml` provides a sepa
 
 Ark uses Btrfs + Snapper + snap-pac. ZFS/SPL packages are excluded. The installer creates the Btrfs subvolume layout and initializes Snapper's `root` configuration on the target filesystem.
 
-The desktop profile uses KDE Plasma, Waterfox from Flathub, TuneD/tuned-ppd, Podman, and the Ark feature manager. The server profile is headless, uses the LTS kernel, enables Cockpit and SSH, and permits SSH password authentication while disabling root SSH login.
+The desktop profile installs Arch's `plasma-meta` package to keep the complete supported KDE Plasma desktop component set in place, plus Plasma workspace wallpapers and the Plymouth settings module. It includes Discover/Flatpak, Steam, Dolphin, Ark, Okular, Kate, Konsole, Spectacle, and Partition Manager, alongside Waterfox from Flathub, TuneD/tuned-ppd, Podman, and the Ark feature manager. This is the full Plasma desktop stack rather than the separate `kde-applications` collection of hundreds of optional KDE apps. NVIDIA images enable DRM kernel modesetting for compositor features such as adaptive sync where the GPU and driver support them. The server profile is headless, uses the LTS kernel, enables Cockpit and SSH, and permits SSH password authentication while disabling root SSH login.
 
 ## Local build examples
 
