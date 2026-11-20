@@ -42,6 +42,8 @@ The build order is **base → kernel → final driver image**. The final stage a
 
 The workflow builds only the three required kernel layers, then composes the seven final variants. The NVIDIA driver is no longer reinstalled for every kernel build; it is added only in the final stage that needs it.
 
+For a full non-Apex rebuild, `.github/workflows/build-payload-standard.yml` runs the same base → kernel → final pipeline but builds only `kernel-desktop-standard` and `kernel-server-lts`. It publishes the standard Intel desktop and server images, plus the standard-kernel NVIDIA 580 and NVIDIA open variants. It never builds the Apex kernel or Apex final images. Run it manually from Actions → **Build Lyd Ark Standard Payload** → **Run workflow**; it supports the same GitHub-hosted and self-hosted runner choices.
+
 For quick iteration, `.github/workflows/build-final-variant.yml` provides a separate **Build Individual Lyd Ark Final Image** workflow. Run it from the Actions tab using **Run workflow**, choose one of the seven final variants, and choose the runner. It pulls the already-published matching kernel tag, builds and lints only the selected final image, then publishes that variant tag. It does not rebuild the base or kernel layers, so those prerequisite tags must already exist and be up to date. The default selection is `ark-nvidia-580`.
 
 ## Build arguments
