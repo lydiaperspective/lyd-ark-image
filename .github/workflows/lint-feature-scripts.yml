@@ -1,0 +1,37 @@
+name: Lint Ark feature scripts
+
+on:
+  push:
+    paths:
+      - ".github/ark"
+      - ".github/ark-development"
+      - ".github/ark-virtualization"
+      - ".github/install-packages.sh"
+      - ".github/workflows/lint-feature-scripts.yml"
+  pull_request:
+    paths:
+      - ".github/ark"
+      - ".github/ark-development"
+      - ".github/ark-virtualization"
+      - ".github/install-packages.sh"
+      - ".github/workflows/lint-feature-scripts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-syntax:
+    name: Check Bash syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate Ark scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/ark
+          bash -n .github/ark-development
+          bash -n .github/ark-virtualization
+          bash -n .github/install-packages.sh
