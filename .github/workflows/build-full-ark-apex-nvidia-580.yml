@@ -1,0 +1,29 @@
+name: Build Full Payload - NVIDIA 580 Apex Desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Where to run the build
+        type: choice
+        required: true
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
+
+concurrency:
+  group: lyd-ark-full-payload-desktop
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build complete ark-apex-nvidia-580 payload
+    uses: ./.github/workflows/build-single-final-payload.yml
+    with:
+      variant: ark-apex-nvidia-580
+      runner: ${{ inputs.runner }}
