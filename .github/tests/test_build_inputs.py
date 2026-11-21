@@ -172,7 +172,7 @@ class FirstBootLoginTests(unittest.TestCase):
         self.assertNotIn('Before=display-manager.service plasmalogin.service', server_unit)
 
     def test_desktop_keeps_plasma_first_boot_dependency(self):
-        containerfile = (ROOT/'.github/Containerfile').read_text()
+        containerfile = (ROOT/'Containerfile').read_text()
         self.assertIn("mkdir -p /usr/lib/systemd/system/plasmalogin.service.d", containerfile)
         self.assertIn("'Requires=ark-initial-account.service'", containerfile)
 
