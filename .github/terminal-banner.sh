@@ -32,7 +32,7 @@ fi
 if command -v lydstore >/dev/null 2>&1; then
     printf '  %-18s %s\n' 'lydstore' 'Lyd Ark Storage Manager — lydstore --help'
 fi
-if command -v alga >/dev/null 2>&1; then
+if command -v alga >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
     printf '  %-18s %s\n' 'alga' 'Graphical installer and system updater'
 fi
 
