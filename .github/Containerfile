@@ -239,9 +239,12 @@ COPY ark-mimeapps.list /etc/xdg/mimeapps.list
 RUN chmod 0755 /usr/libexec/ark/terminal-banner && \
     bash -n /usr/libexec/ark/terminal-banner && \
     bash -n /etc/profile.d/lyd-ark-banner.sh && \
+    fish --no-execute /etc/fish/conf.d/lyd-ark-banner.fish && \
     bash -n /usr/bin/ark && \
     chmod 0755 /usr/bin/ark && \
     ln -sfn /usr/bin/ark /usr/bin/lydsys && \
+    test -x /usr/bin/ark && test -L /usr/bin/lydsys && \
+    test "$(readlink -f /usr/bin/lydsys)" = /usr/bin/ark && \
     if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
         rm -f /etc/xdg/mimeapps.list; \
     else \
