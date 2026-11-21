@@ -25,6 +25,10 @@ on:
           - github-hosted
           - self-hosted
         default: github-hosted
+      build_agents:
+        description: 'Also validate and rebuild the separate agent development image'
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       force:
@@ -228,14 +232,14 @@ jobs:
   # The focused rebase workflow skips this optional agent-image stage.
   validate-agent-environment:
     needs: check-digest
-    if: needs.check-digest.outputs.needs-build == 'true' && (github.event_name != 'workflow_call' || inputs.build_agents)
+    if: needs.check-digest.outputs.needs-build == 'true' && (inputs.build_agents || github.event_name == 'push' || github.event_name == 'schedule')
     permissions:
       contents: read
     uses: ./.github/workflows/test-agents.yml
 
   build-agent-environment:
     needs: [check-digest, validate-agent-environment]
-    if: needs.check-digest.outputs.needs-build == 'true' && (github.event_name != 'workflow_call' || inputs.build_agents)
+    if: needs.check-digest.outputs.needs-build == 'true' && (inputs.build_agents || github.event_name == 'push' || github.event_name == 'schedule')
     runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
