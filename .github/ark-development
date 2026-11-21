@@ -52,17 +52,24 @@ configure_rootless_podman_ids() {
     ensure_subid_mapping /etc/subgid --add-subgids
 
     # Rootless Podman stores this user's layers below /orundum. The first
-    # subordinate UID must be able to traverse every parent directory to the
-    # graphroot; otherwise crun cannot access overlay mount paths.
-    local graphroot subuid path
+    # subordinate UID must traverse every parent directory to the graphroot.
+    # crun also needs traversal through overlay/<layer>/merged. Access ACLs on
+    # existing parents alone are insufficient: Podman creates those child
+    # directories later, so install a default ACL on graphroot (and overlay
+    # when it already exists) to make the permission inherit on new directories.
+    local graphroot subuid path overlay_root
     graphroot=$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)
-    [[ "$graphroot" == /orundum/* ]] || return 0
+    [[ "$graphroot" == /orundum/* && -d "$graphroot" ]] || return 0
     subuid=$(awk -F: -v user="$USER" '$1 == user { print $2; exit }' /etc/subuid)
     [[ "$subuid" =~ ^[0-9]+$ ]] || {
         echo "Could not determine the subordinate UID range for $USER." >&2
         return 1
     }
     require_command setfacl
+    require_command getfacl
+
+    # Grant execute-only traversal on the existing path from /orundum down
+    # through graphroot. Do not grant directory listing or file read access.
     path="$graphroot"
     while [[ "$path" == /orundum/* || "$path" == /orundum ]]; do
         if [[ -d "$path" ]]; then
@@ -71,6 +78,19 @@ configure_rootless_podman_ids() {
         [[ "$path" == /orundum ]] && break
         path=$(dirname "$path")
     done
+
+    # Inherit execute-only access for subordinate IDs on newly-created
+    # storage directories, including overlay/<layer>/merged.
+    as_root setfacl -m "d:u:$subuid:--x" "$graphroot"
+    overlay_root="$graphroot/overlay"
+    if [[ -d "$overlay_root" ]]; then
+        as_root setfacl -m "u:$subuid:--x,d:u:$subuid:--x" "$overlay_root"
+    fi
+
+    if ! as_root getfacl -cp "$graphroot" | grep -Fxq "default:user:$subuid:--x"; then
+        echo "Failed to configure inherited subordinate-UID traversal on $graphroot." >&2
+        return 1
+    fi
 }
 
 container_exists() {
