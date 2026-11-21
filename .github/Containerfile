@@ -424,7 +424,7 @@ RUN set -e; \
         command -v rsvg-convert >/dev/null; \
         command -v kwriteconfig6 >/dev/null; \
         git clone --quiet https://github.com/lydiaperspective/lyd-ark-themes.git /tmp/lyd-ark-themes; \
-        git -C /tmp/lyd-ark-themes checkout --quiet 2da7982afc22059cfe456af72680985d14bf2e98; \
+        git -C /tmp/lyd-ark-themes checkout --quiet 5856c9878709338022cdae1b52f01d30a99dd240; \
         install -d /usr/share/plymouth/themes/lyd-ark-mystical; \
         cp -a /tmp/lyd-ark-themes/themes/mystical/plymouth/. /usr/share/plymouth/themes/lyd-ark-mystical/; \
         for asset in /usr/share/plymouth/themes/lyd-ark-mystical/*.svg; do rsvg-convert "$asset" > "/usr/share/plymouth/themes/lyd-ark-mystical/$(basename "$asset" .svg).png"; done; \
