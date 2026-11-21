@@ -70,7 +70,7 @@ case "$1" in
   -S) [[ "'''+failure+'''" != official ]] ;;
   -U) [[ "'''+failure+'''" != local ]] ;;
   -Q)
-    if [[ "$#" -eq 2 && " nautilus gnome-system-monitor gnome-disk-utility " == *" $2 "* ]]; then
+    if [[ "$#" -eq 2 && " nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility " == *" $2 "* ]]; then
       [[ ! -e "'''+str(d/'removed-gnome-apps')+'''-$2" ]]
     else
       true
@@ -105,7 +105,11 @@ esac
         self.assertIn('bootc-1-1',install)
         self.assertNotIn('debug',install)
         self.assertNotIn('headers',install)
+        self.assertIn('-Rns --noconfirm nuttyimgconverter',calls)
+        self.assertIn('-Rns --noconfirm nautilus-python',calls)
         self.assertIn('-Rns --noconfirm nautilus',calls)
+        self.assertLess(calls.index('-Rns --noconfirm nuttyimgconverter'), calls.index('-Rns --noconfirm nautilus-python'))
+        self.assertLess(calls.index('-Rns --noconfirm nautilus-python'), calls.index('-Rns --noconfirm nautilus'))
         self.assertIn('-Rns --noconfirm gnome-system-monitor',calls)
         self.assertIn('-Rns --noconfirm gnome-disk-utility',calls)
     def test_official_failure_stops_before_local_install(self):
