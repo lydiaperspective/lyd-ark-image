@@ -71,12 +71,12 @@ case "$1" in
   -U) [[ "'''+failure+'''" != local ]] ;;
   -Q)
     if [[ "$#" -eq 2 && " nautilus gnome-system-monitor gnome-disk-utility " == *" $2 "* ]]; then
-      [[ ! -e "'''+str("'''+str(d/'removed-gnome-apps')+'''")+'''" ]]
+      [[ ! -e "'''+str(d/'removed-gnome-apps')+'''-$2" ]]
     else
       true
     fi
     ;;
-  -Rns) touch "'''+str("'''+str(d/'removed-gnome-apps')+'''")+'''" ;;
+  -Rns) touch "'''+str(d/'removed-gnome-apps')+'''-$2" ;;
 esac
 ''')
             mock.chmod(0o755)
