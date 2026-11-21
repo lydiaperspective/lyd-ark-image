@@ -26,6 +26,23 @@ on:
           - github-hosted
           - self-hosted
         default: github-hosted
+  workflow_call:
+    inputs:
+      force:
+        description: 'Rebuild all image stages and all seven final variants, even when inputs are unchanged'
+        required: false
+        type: boolean
+        default: true
+      runner:
+        description: 'Where to run the image builds'
+        required: false
+        type: string
+        default: github-hosted
+      build_agents:
+        description: 'Also rebuild the separate agent development environment'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: lyd-ark-image-release
@@ -63,7 +80,7 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
             https://registry-1.docker.io/v2/library/archlinux/manifests/latest | \
-            awk 'tolower($1) == "docker-content-digest:" {gsub("\r", "", $2); print $2}')
+            awk 'tolower($1) == "docker-content-digest:" {gsub("\\r", "", $2); print $2}')
           [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Missing Arch image digest' >&2; exit 1; }
           echo "value=$DIGEST" >> "$GITHUB_OUTPUT"
 
@@ -133,7 +150,7 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
+          if { [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "workflow_call" ]; } && [ "${{ inputs.force }}" = "true" ]; then
             echo "needs-build=true" >> $GITHUB_OUTPUT
             echo "reason=force" >> $GITHUB_OUTPUT
             exit 0
@@ -209,16 +226,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # The focused rebase workflow skips this optional agent-image stage.
   validate-agent-environment:
     needs: check-digest
-    if: needs.check-digest.outputs.needs-build == 'true'
+    if: needs.check-digest.outputs.needs-build == 'true' && (github.event_name != 'workflow_call' || inputs.build_agents)
     permissions:
       contents: read
     uses: ./.github/workflows/test-agents.yml
 
   build-agent-environment:
     needs: [check-digest, validate-agent-environment]
-    if: needs.check-digest.outputs.needs-build == 'true'
+    if: needs.check-digest.outputs.needs-build == 'true' && (github.event_name != 'workflow_call' || inputs.build_agents)
     runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","ark-builder"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
@@ -299,7 +317,10 @@ jobs:
             -t ghcr.io/${{ github.repository }}:"$TAG" -f .github/Containerfile .github/
           "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:"$TAG"
 
-  # Add one kernel family to each appropriate userspace base.
+  # Rebase each kernel image on the freshly published userspace base.
+  # The kernel stage contains the base filesystem, so its image must be
+  # reconstructed; package caches reduce downloads but do not reuse the old
+  # kernel image as a parent.
   build-kernel:
     needs: [check-digest, build-base]
     if: needs.check-digest.outputs.needs-build == 'true'
@@ -406,7 +427,8 @@ jobs:
           "${PODMAN[@]}" push ghcr.io/${{ github.repository }}:kernel-${{ matrix.name }}
           if [ "${{ inputs.runner }}" != "self-hosted" ]; then sudo chown -R "$USER:$USER" .github/pacman-cache/; fi
 
-  # Compose the driver choice onto the matching kernel image. Legacy public tags stay unchanged.
+  # Driver packages are installed during final-image composition; there is
+  # no independently published driver image to rebuild.
   build-final:
     needs: [check-digest, build-kernel]
     if: needs.check-digest.outputs.needs-build == 'true'
