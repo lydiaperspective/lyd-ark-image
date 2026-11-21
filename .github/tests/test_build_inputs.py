@@ -161,6 +161,26 @@ esac
         self.assertNotIn('-Q plymouth',calls)
 
 
+class DesktopArchiveCommandTests(unittest.TestCase):
+    def test_kde_ark_keeps_its_executable_and_zip_backend(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        installer = (ROOT/'install-packages.sh').read_text()
+        self.assertIn('dolphin ark libarchive okular', containerfile)
+        self.assertIn('COPY ark /usr/bin/lydsys', containerfile)
+        self.assertNotIn('COPY ark /usr/bin/ark', containerfile)
+        self.assertIn('pacman -Q ark libarchive', containerfile)
+        self.assertIn('test -x /usr/bin/ark', containerfile)
+        self.assertIn('test -x /usr/bin/ark', installer)
+        self.assertIn('test -x /usr/bin/lydsys', installer)
+
+    def test_feature_manager_examples_use_lydsys(self):
+        feature_manager = (ROOT/'ark').read_text()
+        self.assertIn('Usage:', feature_manager)
+        self.assertIn('lydsys feature list', feature_manager)
+        self.assertIn('lydsys development enable', feature_manager)
+        self.assertNotIn('ark development enable', feature_manager)
+
+
 class BlsSyncTests(unittest.TestCase):
     def test_read_only_boot_mount_is_not_selected_for_mirroring(self):
         script = (ROOT/'bls-sync.sh').read_text()
