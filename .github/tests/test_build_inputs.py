@@ -160,5 +160,22 @@ esac
         self.assertNotEqual(result.returncode,0)
         self.assertNotIn('-Q plymouth',calls)
 
+
+class FirstBootLoginTests(unittest.TestCase):
+    def test_server_uses_console_account_unit_and_getty(self):
+        containerfile = (ROOT/'.github/Containerfile').read_text()
+        server_unit = (ROOT/'.github/ark-initial-account-server.service').read_text()
+        self.assertIn('install -m 0644 /usr/lib/systemd/system/ark-initial-account-server.service /usr/lib/systemd/system/ark-initial-account.service', containerfile)
+        self.assertIn('systemctl enable ark-initial-account.service getty@tty1.service', containerfile)
+        self.assertIn('systemctl mask display-manager.service plasmalogin.service', containerfile)
+        self.assertIn('ExecStartPost=/usr/bin/systemctl --no-block start getty@tty1.service', server_unit)
+        self.assertNotIn('Before=display-manager.service plasmalogin.service', server_unit)
+
+    def test_desktop_keeps_plasma_first_boot_dependency(self):
+        containerfile = (ROOT/'.github/Containerfile').read_text()
+        self.assertIn("mkdir -p /usr/lib/systemd/system/plasmalogin.service.d", containerfile)
+        self.assertIn("'Requires=ark-initial-account.service'", containerfile)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
