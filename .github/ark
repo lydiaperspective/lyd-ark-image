@@ -17,7 +17,7 @@ Usage:
   lydsys steam|tailscale|podman|distrobox|github-runner|solaar|sunshine|printing|development|virtualization ACTION [ARGS]
 
 Manageable features:
-  steam          Install or remove Steam as a system Flatpak.
+  steam          Install or remove Steam through Pacman in the Arch Distrobox.
   tailscale      Enable or disable the Tailscale system service.
   podman         Enable or disable the rootless Podman API socket.
   github-runner  Register and run a repository-scoped self-hosted runner.
@@ -62,28 +62,83 @@ as_root() {
     fi
 }
 
+steam_container_exists() {
+    distrobox list 2>/dev/null | grep -Eq '(^|[[:space:]])archlinux([[:space:]]|$)'
+}
+
+prepare_steam_container() {
+    require_command distrobox
+    require_command pacman
+
+    # A harmless query initializes Carrier's per-user Arch Distrobox if needed.
+    pacman -Q pacman >/dev/null 2>&1 || {
+        echo "Unable to initialize the Arch package container." >&2
+        return 1
+    }
+
+    # Steam is in Arch's multilib repository, which is disabled by default.
+    distrobox enter archlinux -- sudo sh -c '
+        set -e
+        if grep -q "^#\\[multilib\\]" /etc/pacman.conf; then
+            sed -i "/^#\\[multilib\\]/,/^#Include =/s/^#//" /etc/pacman.conf
+        elif ! grep -q "^\\[multilib\\]" /etc/pacman.conf; then
+            printf "\\n[multilib]\\nInclude = /etc/pacman.d/mirrorlist\\n" >> /etc/pacman.conf
+        fi
+    '
+}
+
+remove_legacy_steam_flatpak() {
+    if command -v flatpak >/dev/null 2>&1 && flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
+        echo "Removing the previous system Flatpak installation; its user data is retained."
+        as_root flatpak uninstall --system --noninteractive --assumeyes "$APP_ID_STEAM"
+    fi
+}
+
 steam_action() {
-    require_command flatpak
+    require_command distrobox
+    require_command pacman
     case "$1" in
         enable)
-            echo "Installing Steam system-wide from Flathub..."
-            as_root flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-            as_root flatpak install --system --noninteractive --assumeyes --or-update flathub "$APP_ID_STEAM"
+            prepare_steam_container
+            echo "Installing Steam from Arch's multilib repository through Carrier..."
+            as_root pacman -Syu --needed --noconfirm steam
+            remove_legacy_steam_flatpak
+            echo "Steam is installed through Pacman in the Arch Distrobox."
+            echo "Choose 'A' at the Carrier export prompt to add Steam to the application launcher."
             ;;
         disable)
-            if flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
-                echo "Removing the Steam application. User data is not deliberately deleted."
+            local removed=0
+            if steam_container_exists && pacman -Q steam >/dev/null 2>&1; then
+                echo "Removing the Pacman Steam package. User data is retained."
+                as_root pacman -Rns --noconfirm steam
+                removed=1
+            fi
+            if command -v flatpak >/dev/null 2>&1 && flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
+                echo "Removing the legacy system Flatpak Steam installation; user data is retained."
                 as_root flatpak uninstall --system --noninteractive --assumeyes "$APP_ID_STEAM"
-            else
+                removed=1
+            fi
+            if ((removed == 0)); then
                 echo "Steam is not installed."
             fi
             ;;
         status)
-            if flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
-                echo "Steam: installed (system Flatpak)"
-            else
+            local installed=0
+            if steam_container_exists && pacman -Q steam >/dev/null 2>&1; then
+                echo "Steam: installed (Pacman in the Arch Distrobox)"
+                installed=1
+            fi
+            if command -v flatpak >/dev/null 2>&1 && flatpak info --system "$APP_ID_STEAM" >/dev/null 2>&1; then
+                echo "Steam: installed (legacy system Flatpak)"
+                installed=1
+            fi
+            if ((installed == 0)); then
                 echo "Steam: not installed"
             fi
+            ;;
+        *)
+            echo "Usage: lydsys steam {enable|disable|status}" >&2
+            return 2
             ;;
     esac
 }
@@ -371,7 +426,7 @@ feature_action() {
         list)
             cat <<'EOF'
 Manageable:
-  steam          Optional system-wide Flatpak
+  steam          Optional Pacman package in the Arch Distrobox
   tailscale      Optional system service
   podman         Optional rootless API socket
   github-runner  Optional repository-scoped runner service
