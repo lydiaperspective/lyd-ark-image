@@ -115,9 +115,6 @@ esac
         self.assertIn('bootc-1-1',install)
         self.assertNotIn('debug',install)
         self.assertNotIn('headers',install)
-        self.assertIn('-Rns --noconfirm nuttyimgconverter',calls)
-        self.assertIn('-Rns --noconfirm nautilus-python',calls)
-        self.assertIn('-Rns --noconfirm nautilus',calls)
         removal_calls = [line for line in calls.splitlines() if line.startswith('-Rns --noconfirm ')]
         self.assertEqual(
             removal_calls,
