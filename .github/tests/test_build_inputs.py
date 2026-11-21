@@ -1,4 +1,5 @@
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -30,11 +31,11 @@ class ReleaseTests(unittest.TestCase):
             release.select_assets({'assets':[{'name':'pacman-cache.tar.gz.part-ab'}]},'cache')
 
 class InstallerTests(unittest.TestCase):
-    def run_installer(self, failure=''):
+    def run_installer(self, failure='', variant=''):
         with tempfile.TemporaryDirectory() as directory:
             d=Path(directory)
             (d/'archives').mkdir()
-            for name in ['plymouth','bootc','bootc-debug','linux-headers']:
+            for name in ['plymouth','bootc','bootc-debug','linux-headers','nuttyimgconverter','nautilus-python','nautilus','gnome-system-monitor','gnome-disk-utility-git']:
                 (d/'archives'/f'{name}-1-1-x86_64.pkg.tar.zst').touch()
             (d/'install').mkdir()
             (d/'hooks').mkdir()
@@ -55,6 +56,8 @@ class InstallerTests(unittest.TestCase):
                 'etc/sudoers.d/10-wheel': '%wheel ALL=(ALL:ALL) ALL\n',
                 'etc/pam.d/system-login': 'session required pam_mkhomedir.so skel=/etc/skel umask=0077\n',
             }
+            if variant == 'intel3-server-lts':
+                fixtures.pop('usr/lib/packagekit-backend/libpk_backend_bootc.so')
             for relative, content in fixtures.items():
                 target = d/relative
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -68,19 +71,36 @@ case "$1" in
   -Qp) file=${2##*/}; printf '%s 1-1\\n' "${file%-1-1-x86_64.pkg.tar.zst}" ;;
   -Si) [[ "$2" == plymouth ]] ;;
   -S) [[ "'''+failure+'''" != official ]] ;;
-  -U) [[ "'''+failure+'''" != local ]] ;;
+  -U)
+    [[ "'''+failure+'''" != local ]] || exit 1
+    shift
+    for archive in "$@"; do
+      file=${archive##*/}
+      pkg=${file%-1-1-x86_64.pkg.tar.zst}
+      touch "'''+str(d/'installed-gnome-apps')+'''-$pkg"
+    done
+    ;;
   -Qq)
-    for pkg in nuttyimgconverter nautilus-python nautilus gnome-system-monitor; do
+    for marker in "'''+str(d/'installed-gnome-apps')+'''-"*; do
+      [[ -e "$marker" ]] || continue
+      pkg=${marker#*installed-gnome-apps-}
       [[ -e "'''+str(d/'removed-gnome-apps')+'''-$pkg" ]] || printf '%s\\n' "$pkg"
     done
     ;;
   -Q)
-    if [[ "$#" -eq 2 && "$2" == gnome-disk-utility ]]; then
-      false
-    elif [[ "$#" -eq 2 && " nuttyimgconverter nautilus-python nautilus gnome-system-monitor " == *" $2 "* ]]; then
-      [[ ! -e "'''+str(d/'removed-gnome-apps')+'''-$2" ]]
-    else
-      true
+    if [[ "$#" -eq 2 ]]; then
+      pkg="$2"
+      case "$pkg" in
+        nuttyimgconverter|nautilus-python|nautilus|gnome-system-monitor|gnome-disk-utility|gnome-disk-utility-git)
+          [[ -e "'''+str(d/'installed-gnome-apps')+'''-$pkg" && ! -e "'''+str(d/'removed-gnome-apps')+'''-$pkg" ]]
+          ;;
+        plasma-login-manager)
+          [[ "${VARIANT:-}" != intel3-server-lts ]]
+          ;;
+        *)
+          true
+          ;;
+      esac
     fi
     ;;
   -Rns)
@@ -105,7 +125,10 @@ esac
                 '/etc/pam.d': str(d/'etc/pam.d'),
             }.items():
                 script=script.replace(source, target)
-            result=subprocess.run(['bash','-c',script],capture_output=True,text=True)
+            env=os.environ.copy()
+            if variant:
+                env['VARIANT']=variant
+            result=subprocess.run(['bash','-c',script],capture_output=True,text=True,env=env)
             return result,(d/'calls').read_text()
     def test_routes_official_and_local_and_skips_debug_headers(self):
         result,calls=self.run_installer()
@@ -118,10 +141,16 @@ esac
         removal_calls = [line for line in calls.splitlines() if line.startswith('-Rns --noconfirm ')]
         self.assertEqual(
             removal_calls,
-            ['-Rns --noconfirm nuttyimgconverter nautilus-python nautilus gnome-system-monitor'],
+            ['-Rns --noconfirm nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility-git'],
         )
-        # gnome-disk-utility is absent in this fixture and must not be passed
-        # to pacman as a removal target.
+    def test_server_skips_desktop_only_aur_archives(self):
+        result,calls=self.run_installer(variant='intel3-server-lts')
+        self.assertEqual(result.returncode,0,result.stderr + result.stdout)
+        install=[line for line in calls.splitlines() if line.startswith('-U')][0]
+        for package in ('nuttyimgconverter','nautilus-python','nautilus','gnome-system-monitor','gnome-disk-utility-git'):
+            self.assertNotIn(package,install)
+        self.assertIn('Skipping desktop-only package in server image: gnome-disk-utility-git',result.stdout)
+        self.assertNotIn('-Rns --noconfirm',calls)
     def test_official_failure_stops_before_local_install(self):
         result,calls=self.run_installer('official')
         self.assertNotEqual(result.returncode,0)

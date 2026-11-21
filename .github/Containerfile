@@ -98,14 +98,16 @@ RUN set -e; \
         for unit in NetworkManager.service bluetooth.service cups.service avahi-daemon.service ipp-usb.service; do \
             test -f "/usr/lib/systemd/system/$unit" || { echo "ERROR: printing/scanning unit missing: $unit" >&2; exit 1; }; \
         done; \
-        # Keep the desktop profile KDE-only; remove GNOME utilities if they \
-        # arrive as dependencies of the selected package set. \
-        for pkg in nautilus gnome-system-monitor gnome-disk-utility; do \
-            if pacman -Q "$pkg" >/dev/null 2>&1; then \
-                pacman -Rns --noconfirm "$pkg"; \
-            fi; \
+        # Keep the desktop profile KDE-only; batch-remove GNOME utilities \
+        # if they arrive as dependencies of the selected package set. \
+        unwanted_gnome=(nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility gnome-disk-utility-git); \
+        installed_gnome="$(pacman -Qq)"; \
+        remove_gnome=(); \
+        for pkg in "${unwanted_gnome[@]}"; do \
+            if grep -Fxq -- "$pkg" <<< "$installed_gnome"; then remove_gnome+=("$pkg"); fi; \
         done; \
-        for pkg in nautilus gnome-system-monitor gnome-disk-utility; do \
+        if (("${#remove_gnome[@]}")); then pacman -Rns --noconfirm "${remove_gnome[@]}"; fi; \
+        for pkg in "${unwanted_gnome[@]}"; do \
             if pacman -Q "$pkg" >/dev/null 2>&1; then \
                 echo "ERROR: unwanted GNOME application remains installed: $pkg" >&2; \
                 exit 1; \
