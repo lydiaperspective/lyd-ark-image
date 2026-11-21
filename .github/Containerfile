@@ -46,7 +46,7 @@ RUN set -e; \
             base glibc inetutils linux-firmware networkmanager mkinitcpio tailscale \
             plasma-meta plasma-desktop plasma-workspace kscreen plasma-nm plasma-pa plasma-integration polkit-kde-agent breeze breeze-cursors breeze-icons \
             plasma-workspace-wallpapers plymouth-kcm \
-            plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin ark libarchive okular kate solaar \
+            plasma-systemmonitor powerdevil systemsettings plasma-login-manager konsole dolphin libarchive okular kate solaar \
             spectacle partitionmanager kde-gtk-config breeze-gtk xdg-desktop-portal-kde \
             xdg-desktop-portal xdg-user-dirs xdg-utils kio-admin kwalletmanager kwallet-pam \
             flatpak discover packagekit packagekit-qt6 bluez bluez-utils bluedevil wpa_supplicant print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi \
@@ -93,7 +93,8 @@ RUN set -e; \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap; \
     echo "arklinux" > /etc/hostname; \
     if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
-        pacman -Q ark libarchive || { echo "ERROR: KDE Ark ZIP archive support is missing." >&2; exit 1; }; \
+        pacman -Q libarchive || { echo "ERROR: libarchive support is missing." >&2; exit 1; }; \\
+        if pacman -Q ark >/dev/null 2>&1; then echo "ERROR: KDE Ark conflicts with the Lyd Ark command." >&2; exit 1; fi; \
         for pkg in plasma-nm bluez bluez-utils bluedevil wpa_supplicant print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi; do \
             pacman -Q "$pkg" >/dev/null || { echo "ERROR: printing/scanning package missing: $pkg" >&2; exit 1; }; \
         done; \
@@ -230,14 +231,23 @@ RUN mkdir -p /etc/skel/.local/share/{applications,fonts,icons,themes,backgrounds
 COPY ark-bindmounts /usr/lib/ark/ark-bindmounts
 COPY ark-bindmounts-pam /usr/lib/ark/ark-bindmounts-pam
 COPY ark-bindmounts.service /usr/lib/systemd/system/ark-bindmounts.service
-COPY ark /usr/bin/lydsys
+COPY ark /usr/bin/ark
+COPY terminal-banner.sh /usr/libexec/ark/terminal-banner
+COPY terminal-banner-profile.sh /etc/profile.d/lyd-ark-banner.sh
+COPY terminal-banner.fish /etc/fish/conf.d/lyd-ark-banner.fish
 COPY ark-mimeapps.list /etc/xdg/mimeapps.list
-RUN if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
-        rm -f /usr/bin/ark /etc/xdg/mimeapps.list; \
+RUN chmod 0755 /usr/libexec/ark/terminal-banner && \
+    bash -n /usr/libexec/ark/terminal-banner && \
+    bash -n /etc/profile.d/lyd-ark-banner.sh && \
+    bash -n /usr/bin/ark && \
+    chmod 0755 /usr/bin/ark && \
+    ln -sfn /usr/bin/ark /usr/bin/lydsys && \
+    if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
+        rm -f /etc/xdg/mimeapps.list; \
     else \
-        bash -n /usr/bin/lydsys; \
-        test -x /usr/bin/ark; \
-        chmod 0755 /usr/bin/lydsys /usr/libexec/ark/ark-development /usr/libexec/ark/ark-virtualization; \
+        pacman -Q libarchive >/dev/null && \
+        if pacman -Q ark >/dev/null 2>&1; then echo "ERROR: KDE Ark package must not be installed." >&2; exit 1; fi; \
+        chmod 0755 /usr/libexec/ark/ark-development /usr/libexec/ark/ark-virtualization; \
     fi; \
     chmod +x /usr/lib/ark/ark-bindmounts /usr/lib/ark/ark-bindmounts-pam && \
     systemctl enable ark-bindmounts.service && \
