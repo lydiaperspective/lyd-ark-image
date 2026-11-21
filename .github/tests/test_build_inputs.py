@@ -204,6 +204,14 @@ class StorageManagerImageTests(unittest.TestCase):
         self.assertIn('lydstore --help', containerfile)
         self.assertEqual(containerfile.count('rclone fuse3 python-pip python-setuptools ntfs-3g exfatprogs'), 2)
 
+    def test_ark_storage_tmpfiles_uses_persistent_root_and_non_destructive_symlink(self):
+        tmpfiles = (ROOT/'ark-storage.tmpfiles').read_text()
+        self.assertIn('d /orundum/ark ', tmpfiles)
+        self.assertIn('d /orundum/ark/Containers ', tmpfiles)
+        self.assertIn('L /ark - - - - /orundum/ark', tmpfiles)
+        containerfile = (ROOT/'Containerfile').read_text()
+        self.assertNotIn('systemd-tmpfiles --create /usr/lib/tmpfiles.d/ark-storage.conf', containerfile)
+
     def test_fuse_allows_other_users_for_rootless_container_access(self):
         containerfile = (ROOT/'Containerfile').read_text()
         self.assertIn("user_allow_other", containerfile)
