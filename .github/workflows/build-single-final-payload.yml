@@ -1,6 +1,32 @@
 name: Reusable - Build One Complete Lyd Ark Image Payload
 
 on:
+  # Run this workflow directly to build one complete payload for the selected
+  # final image. This includes its userspace base and matching kernel layer.
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Complete final image payload to build"
+        type: choice
+        required: true
+        default: ark-nvidia-580
+        options:
+          - intel-modern
+          - intel-modern-apex
+          - ark-nvidia-open
+          - ark-apex-nvidia-open
+          - ark-nvidia-580
+          - ark-apex-nvidia-580
+          - intel3-server-lts
+      runner:
+        description: "Where to run the image build"
+        type: choice
+        required: true
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
+  # Keep this workflow reusable by other workflows.
   workflow_call:
     inputs:
       variant:
@@ -10,6 +36,10 @@ on:
         required: false
         default: github-hosted
         type: string
+
+concurrency:
+  group: lyd-ark-image-release
+  cancel-in-progress: false
 
 permissions:
   contents: read
