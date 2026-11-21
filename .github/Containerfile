@@ -433,7 +433,16 @@ RUN rm -rf \
         /etc/pacman.conf \
         /etc/pacman.d/ \
         /var/lib/pacman/ && \
-    rm -f /usr/share/applications/{bssh,bvnc,avahi-discover,qv4l2,qvidcap,stoken-gui,stoken-gui-small,org.gnome.Extensions,org.gnome.TextEditor,lstopo,hwloc-ls,org.gnome.Logs,ibus,ibus-setup,ibus-wayland,scrcpy,scrcpy-console,veracrypt,timeshift,timeshift-gtk,org.freedesktop.MalcontentControl,nvtop}.desktop 2>/dev/null || true
+    rm -f /usr/share/applications/{bssh,bvnc,avahi-discover,qv4l2,qvidcap,stoken-gui,stoken-gui-small,org.gnome.Extensions,org.gnome.TextEditor,lstopo,hwloc-ls,org.gnome.Logs,ibus,ibus-setup,ibus-wayland,scrcpy,scrcpy-console,veracrypt,timeshift,timeshift-gtk,org.freedesktop.MalcontentControl,nvtop}.desktop 2>/dev/null || true; \
+    if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
+        # Discover depends on Arch's AppStream catalogue even when ALPM is absent. \
+        # Remove that catalogue so only Flatpak supplies installable applications. \
+        rm -rf /usr/share/swcatalog; \
+        test ! -e /usr/share/swcatalog; \
+        test -s /usr/lib/qt6/plugins/discover/flatpak-backend.so; \
+        test -s /usr/lib/packagekit-backend/libpk_backend_bootc.so; \
+        test ! -e /usr/lib/packagekit-backend/libpk_backend_alpm.so; \
+    fi
 
 # Runtime state is recreated at boot; keep builder-injected mounts intact.
 COPY clean-runtime.py /usr/lib/ark/clean-runtime.py
