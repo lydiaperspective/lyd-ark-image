@@ -60,6 +60,21 @@ if [[ "${VARIANT:-}" == "intel3-server-lts" ]]; then
         exit 1
     fi
 else
+    # AUR packages are installed after the base userspace layer and can pull
+    # GNOME utilities back in as dependencies. Remove them from the composed
+    # desktop image, then fail the build if any remain.
+    for pkg in nautilus gnome-system-monitor gnome-disk-utility; do
+        if /usr/bin/pacman -Q "$pkg" >/dev/null 2>&1; then
+            /usr/bin/pacman -Rns --noconfirm "$pkg"
+        fi
+    done
+    for pkg in nautilus gnome-system-monitor gnome-disk-utility; do
+        if /usr/bin/pacman -Q "$pkg" >/dev/null 2>&1; then
+            echo "ERROR: unwanted GNOME application remains installed: $pkg" >&2
+            exit 1
+        fi
+    done
+
     /usr/bin/pacman -Q discover packagekit packagekit-qt6 plasma-meta plasma-desktop plasma-workspace kwin kscreen plasma-login-manager \
         bluedevil kde-cli-tools kde-gtk-config kdeplasma-addons kglobalacceld kinfocenter kmenuedit kpipewire \
         kscreenlocker ksystemstats kwallet-pam plasma-browser-integration plasma-disks plasma-firewall \
