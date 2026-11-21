@@ -1,6 +1,9 @@
-# Standardized Lyd Ark storage root. Setgid keeps new content in the ark group.
-d /ark          2775 root ark -
-d /ark/Containers 2775 root ark -
-d /ark/Media      2775 root ark -
-d /ark/Share      2775 root ark -
-d /ark/Configs    2775 root ark -
+# Shared Lyd Ark storage lives on the persistent /orundum subvolume.
+# L creates /ark only when it is absent; it never replaces an existing data directory.
+d /orundum/ark          2775 root ark -
+d /orundum/ark/Containers 2775 root ark -
+d /orundum/ark/Media      2775 root ark -
+d /orundum/ark/Share      2775 root ark -
+d /orundum/ark/Configs    2775 root ark -
+d /orundum/ark/Drives     2775 root ark -
+L /ark - - - - /orundum/ark
