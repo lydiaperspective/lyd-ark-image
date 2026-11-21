@@ -63,12 +63,20 @@ else
     # AUR packages are installed after the base userspace layer and can pull
     # GNOME utilities back in as dependencies. Remove them from the composed
     # desktop image, then fail the build if any remain.
-    for pkg in nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility; do
-        if /usr/bin/pacman -Q "$pkg" >/dev/null 2>&1; then
-            /usr/bin/pacman -Rns --noconfirm "$pkg"
+    unwanted_packages=(nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility)
+    installed_packages="$(/usr/bin/pacman -Qq)"
+    packages_to_remove=()
+    for pkg in "${unwanted_packages[@]}"; do
+        if grep -Fxq -- "$pkg" <<< "$installed_packages"; then
+            packages_to_remove+=("$pkg")
         fi
     done
-    for pkg in nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility; do
+    # Remove the complete installed set in one transaction. Separate pacman
+    # removals can orphan/remove later targets, making a subsequent removal fail.
+    if (("${#packages_to_remove[@]}")); then
+        /usr/bin/pacman -Rns --noconfirm "${packages_to_remove[@]}"
+    fi
+    for pkg in "${unwanted_packages[@]}"; do
         if /usr/bin/pacman -Q "$pkg" >/dev/null 2>&1; then
             echo "ERROR: unwanted GNOME application remains installed: $pkg" >&2
             exit 1
