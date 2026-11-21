@@ -151,6 +151,7 @@ RUN chmod 0755 /usr/libexec/ark/create-initial-account && \
 RUN set -e; \
     if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
         systemctl enable NetworkManager tuned tuned-ppd sshd cockpit.socket libvirtd.service tailscaled.service; \
+        systemctl mask systemd-networkd-wait-online.service; \
         mkdir -p /etc/ssh/sshd_config.d; \
         printf 'PasswordAuthentication yes\nPubkeyAuthentication yes\nPermitRootLogin no\n' > /etc/ssh/sshd_config.d/10-ark-server.conf; \
     else \
