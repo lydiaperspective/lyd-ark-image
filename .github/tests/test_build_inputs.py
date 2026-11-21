@@ -75,7 +75,9 @@ case "$1" in
     done
     ;;
   -Q)
-    if [[ "$#" -eq 2 && " nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility " == *" $2 "* ]]; then
+    if [[ "$#" -eq 2 && "$2" == gnome-disk-utility ]]; then
+      false
+    elif [[ "$#" -eq 2 && " nuttyimgconverter nautilus-python nautilus gnome-system-monitor " == *" $2 "* ]]; then
       [[ ! -e "'''+str(d/'removed-gnome-apps')+'''-$2" ]]
     else
       true
