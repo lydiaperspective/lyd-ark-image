@@ -64,6 +64,11 @@ class InstallerTests(unittest.TestCase):
                 target.write_text(content)
                 if relative.endswith(('bootcBackend.py', 'ark-development', 'ark-virtualization')):
                     target.chmod(0o755)
+            (d/'bin').mkdir()
+            for executable in ('ark', 'lydsys'):
+                target = d/'bin'/executable
+                target.write_text('#!/bin/sh\\nexit 0\\n')
+                target.chmod(0o755)
             mock=d/'pacman'
             mock.write_text('''#!/bin/bash
 printf '%s\\n' "$*" >> "'''+str(d/'calls')+'''"
@@ -113,6 +118,8 @@ esac
             script=(ROOT/'install-packages.sh').read_text()
             for source, target in {
                 '/usr/bin/pacman': str(mock),
+                '/usr/bin/ark': str(d/'bin/ark'),
+                '/usr/bin/lydsys': str(d/'bin/lydsys'),
                 '/tmp/aur-packages': str(d/'archives'),
                 '/usr/lib/initcpio': str(d),
                 '/usr/lib/systemd/system': str(d/'usr/lib/systemd/system'),
