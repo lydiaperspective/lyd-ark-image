@@ -163,7 +163,7 @@ esac
 
 class BlsSyncTests(unittest.TestCase):
     def test_read_only_boot_mount_is_not_selected_for_mirroring(self):
-        script = (ROOT/'.github/bls-sync.sh').read_text()
+        script = (ROOT/'bls-sync.sh').read_text()
         guard = 'case ",$BOOT_OPTIONS," in'
         self.assertIn(guard, script)
         self.assertIn('echo "bls-sync: /boot is read-only; skipping optional /boot mirror"', script)
