@@ -436,7 +436,7 @@ RUN set -e; \
         for asset in /usr/share/plymouth/themes/lyd-ark-mystical/*.png; do test -s "$asset"; done; \
         install -D -m 0644 "/tmp/lyd-ark-themes/themes/mystical/colors/Mystical.colors" "/usr/share/color-schemes/Mystical.colors"; \
         install -d /usr/share/plasma/look-and-feel; \
-        cp -a /tmp/lyd-ark-themes/themes/wicca/look-and-feel/org.lydark.mystical.desktop /usr/share/plasma/look-and-feel/; \
+        cp -a /tmp/lyd-ark-themes/themes/mystical/look-and-feel/org.lydark.mystical.desktop /usr/share/plasma/look-and-feel/; \
         install -d /etc/skel/.config /etc/xdg; \
         kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key ColorScheme "Mystical"; \
         kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key AccentColor "152,116,196"; \
