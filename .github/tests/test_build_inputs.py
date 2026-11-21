@@ -195,5 +195,19 @@ class ServerNetworkWaitOnlineTests(unittest.TestCase):
 
 
 
+class StorageManagerImageTests(unittest.TestCase):
+    def test_lydstore_is_installed_in_shared_base_for_desktop_and_server(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        self.assertIn('ARG LYDSTORE_SHA=', containerfile)
+        self.assertIn('lyd-ark-storage-manager.git', containerfile)
+        self.assertIn('pip install --break-system-packages --no-build-isolation --no-deps', containerfile)
+        self.assertIn('lydstore --help', containerfile)
+        self.assertEqual(containerfile.count('rclone fuse3 python-pip python-setuptools ntfs-3g exfatprogs'), 2)
+
+    def test_fuse_allows_other_users_for_rootless_container_access(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        self.assertIn("user_allow_other", containerfile)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
