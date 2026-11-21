@@ -83,7 +83,7 @@ case "$1" in
   -Qq)
     for marker in "'''+str(d/'installed-gnome-apps')+'''-"*; do
       [[ -e "$marker" ]] || continue
-      pkg=${marker##*-}
+      pkg=${marker#*installed-gnome-apps-}
       [[ -e "'''+str(d/'removed-gnome-apps')+'''-$pkg" ]] || printf '%s\\n' "$pkg"
     done
     ;;
