@@ -100,13 +100,23 @@ echo "bls-sync: Known deployments: $(printf '%s' "$deployments" | tr '\n' ' ')"
 
 mkdir -p "$ESP/loader/entries" "$ESP/ostree"
 
-# Detect /boot mount (may differ from ESP when /boot is on btrfs root)
+# Detect a separate writable /boot mount (may differ from the ESP when
+# /boot is on btrfs). bootc systems can expose /boot read-only; in that case
+# the optional mirror must be skipped rather than failing the whole sync.
 BOOT_DIR=""
 for candidate in "/boot"; do
     if mountpoint -q "$candidate" 2>/dev/null; then
         BOOT_FSTYPE=$(df -T "$candidate" 2>/dev/null | awk 'NR==2{print $2}')
+        BOOT_OPTIONS=$(findmnt -n -o OPTIONS --target "$candidate" 2>/dev/null || true)
         if [ "$BOOT_FSTYPE" != "vfat" ]; then
-            BOOT_DIR="$candidate"
+            case ",$BOOT_OPTIONS," in
+                *,rw,*)
+                    BOOT_DIR="$candidate"
+                    ;;
+                *)
+                    echo "bls-sync: /boot is read-only; skipping optional /boot mirror"
+                    ;;
+            esac
         fi
         break
     fi
