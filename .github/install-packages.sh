@@ -102,7 +102,9 @@ else
     /usr/bin/pacman -Q qemu-full libvirt virt-manager virt-viewer spice-gtk dnsmasq iptables-nft edk2-ovmf swtpm
     test -x /usr/bin/ark
     test -x /usr/bin/lydsys
-    /usr/bin/pacman -Q ark libarchive
+    /usr/bin/pacman -Q libarchive
+    ! /usr/bin/pacman -Qq | grep -qx ark
+    test "$(readlink -f /usr/bin/lydsys)" = /usr/bin/ark
     test -x /usr/libexec/ark/ark-development
     test -x /usr/libexec/ark/ark-virtualization
     ! /usr/bin/pacman -Qq | grep -qx sddm
