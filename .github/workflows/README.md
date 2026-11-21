@@ -51,6 +51,10 @@ The workflow shares the `lyd-ark-image-release` concurrency lock with the
 regular payload and base-image workflows so they cannot publish overlapping
 base or image tags at the same time.
 
+Changes to workflow definitions alone do not automatically start an image build.
+After merging workflow changes, start the appropriate workflow manually from
+GitHub Actions when you are ready to publish new images.
+
 ## Build All Lyd Ark Images
 
 Use **Actions → Build All Lyd Ark Images** for the regular complete image
