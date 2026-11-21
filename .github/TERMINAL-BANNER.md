@@ -45,4 +45,4 @@ Run these checks in the image build environment:
 For a desktop image, verify the KDE Ark package is absent while libarchive
 remains installed. Verify that readlink -f /usr/bin/lydsys resolves to
 /usr/bin/ark. On the server image, verify both command names and lydstore
-are available; Alga remains listed only when its executable is installed.
+are available. Alga is listed only in a graphical session where the application can launch.
