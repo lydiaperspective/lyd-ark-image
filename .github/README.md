@@ -185,3 +185,8 @@ Build files live in `.github/`:
 ## Deployment
 
 The installer consumes the final tags above. Intermediate `base-*` and `kernel-*` tags are build inputs only.
+
+
+## Terminal banner and custom commands
+
+Desktop and server images show a Wicca-themed command banner in interactive terminal sessions. The canonical system-manager command is `ark`; `lydsys` remains a compatibility alias. See [TERMINAL-BANNER.md](TERMINAL-BANNER.md) for the command reference, shell integration, and validation steps.
