@@ -71,7 +71,7 @@ For quick iteration, `.github/workflows/build-final-variant.yml` provides a sepa
 
 Ark uses Btrfs + Snapper + snap-pac. ZFS/SPL packages are excluded. The installer creates the Btrfs subvolume layout and initializes Snapper's `root` configuration on the target filesystem.
 
-The desktop profile installs Arch's `plasma-meta` package to keep the complete supported KDE Plasma desktop component set in place, plus Plasma workspace wallpapers and the Plymouth settings module. It includes Discover/Flatpak, Steam, Dolphin, Ark, Okular, Kate, Konsole, Spectacle, and Partition Manager, alongside Waterfox from Flathub, TuneD/tuned-ppd, Podman, Solaar, and the Ark feature manager. Solaar is installed as a system package, with its tray service opt-in per user. Sunshine is available as an optional system-wide Flathub feature and runs as a per-user graphical-session service. This is the full Plasma desktop stack rather than the separate `kde-applications` collection of hundreds of optional KDE apps. NVIDIA images enable DRM kernel modesetting for compositor features such as adaptive sync where the GPU and driver support them. The server profile is headless, uses the LTS kernel, enables Cockpit and SSH, and permits SSH password authentication while disabling root SSH login.
+The desktop profile installs Arch's `plasma-meta` package to keep the complete supported KDE Plasma desktop component set in place, plus Plasma workspace wallpapers and the Plymouth settings module. It includes Discover/Flatpak, Steam, Dolphin, Ark, Okular, Kate, Konsole, Spectacle, and Partition Manager, alongside Waterfox from Flathub, TuneD/tuned-ppd, Podman, Solaar, and the Lydsys System Manager. Solaar is installed as a system package, with its tray service opt-in per user. Sunshine is available as an optional system-wide Flathub feature and runs as a per-user graphical-session service. This is the full Plasma desktop stack rather than the separate `kde-applications` collection of hundreds of optional KDE apps. NVIDIA images enable DRM kernel modesetting for compositor features such as adaptive sync where the GPU and driver support them. The server profile is headless, uses the LTS kernel, enables Cockpit and SSH, and permits SSH password authentication while disabling root SSH login.
 
 ## Optional development and desktop virtualization
 
@@ -81,7 +81,7 @@ available without starting its daemon on every desktop boot.
 
 ### Development environment
 
-Run `ark development enable` to create a user-owned Arch Linux Distrobox
+Run `lydsys development enable` to create a user-owned Arch Linux Distrobox
 named `ark-development`. It contains base-devel, Git/Git LFS, GitHub CLI,
 Node.js/npm, Python/pip, Rust, C/C++ tooling, CMake, Ninja, debugging utilities, shell linters, and code-search tools.
 The feature also installs Claude Code and OpenAI Codex CLI using their
@@ -93,11 +93,11 @@ ensures the user has subordinate UID/GID mappings required by rootless Podman. P
 credentials remain in the user's home directory. Commands:
 
 ```bash
-ark development enable
-ark development status
-ark development shell
-ark development update
-ark development disable
+lydsys development enable
+lydsys development status
+lydsys development shell
+lydsys development update
+lydsys development disable
 ```
 
 Distrobox integrates with the host and shares the user's home directory; it is a mutable toolchain environment, not a security sandbox. Claude Code and Codex run as the logged-in user and should be treated as having access to that user's files.
@@ -114,18 +114,18 @@ firmware, swtpm, SPICE support, dnsmasq, and the NAT networking dependencies. Th
 existing Cockpit/libvirt configuration.
 
 ```bash
-ark virtualization enable
-ark virtualization status
-ark virtualization list
-ark virtualization host
-ark virtualization gui
-ark virtualization info VM
-ark virtualization start VM
-ark virtualization shutdown VM
-ark virtualization restart VM
-ark virtualization snapshot VM SNAPSHOT_NAME
-ark virtualization console VM
-ark virtualization disable
+lydsys virtualization enable
+lydsys virtualization status
+lydsys virtualization list
+lydsys virtualization host
+lydsys virtualization gui
+lydsys virtualization info VM
+lydsys virtualization start VM
+lydsys virtualization shutdown VM
+lydsys virtualization restart VM
+lydsys virtualization snapshot VM SNAPSHOT_NAME
+lydsys virtualization console VM
+lydsys virtualization disable
 ```
 
 Enabling starts libvirt and configures its default NAT network. VM management
@@ -178,7 +178,7 @@ Build files live in `.github/`:
 - `install-packages.sh` — installs and validates the shared prebuilt Ark AUR payload
 - `build-payload.yml` — staged image build and GHCR publication workflow
 - `bls-sync.sh`, `ark-bls-sync.service`, and `bls-sync.conf` — boot entry synchronization
-- `ark` and related scripts — Ark runtime feature and system integration tools
+- `ark` and related scripts — Lydsys System Manager feature and system integration tools
 - `ark-development` and `ark-virtualization` — optional development and local VM feature managers
 - `ark-solaar.service` and `ark-sunshine.service` — opt-in per-user graphical-session services
 

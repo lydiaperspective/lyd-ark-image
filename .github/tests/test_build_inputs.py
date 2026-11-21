@@ -64,6 +64,11 @@ class InstallerTests(unittest.TestCase):
                 target.write_text(content)
                 if relative.endswith(('bootcBackend.py', 'ark-development', 'ark-virtualization')):
                     target.chmod(0o755)
+            (d/'bin').mkdir()
+            for executable in ('ark', 'lydsys'):
+                target = d/'bin'/executable
+                target.write_text('#!/bin/sh\\nexit 0\\n')
+                target.chmod(0o755)
             mock=d/'pacman'
             mock.write_text('''#!/bin/bash
 printf '%s\\n' "$*" >> "'''+str(d/'calls')+'''"
@@ -113,6 +118,8 @@ esac
             script=(ROOT/'install-packages.sh').read_text()
             for source, target in {
                 '/usr/bin/pacman': str(mock),
+                '/usr/bin/ark': str(d/'bin/ark'),
+                '/usr/bin/lydsys': str(d/'bin/lydsys'),
                 '/tmp/aur-packages': str(d/'archives'),
                 '/usr/lib/initcpio': str(d),
                 '/usr/lib/systemd/system': str(d/'usr/lib/systemd/system'),
@@ -159,6 +166,26 @@ esac
         result,calls=self.run_installer('local')
         self.assertNotEqual(result.returncode,0)
         self.assertNotIn('-Q plymouth',calls)
+
+
+class DesktopArchiveCommandTests(unittest.TestCase):
+    def test_kde_ark_keeps_its_executable_and_zip_backend(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        installer = (ROOT/'install-packages.sh').read_text()
+        self.assertIn('dolphin ark libarchive okular', containerfile)
+        self.assertIn('COPY ark /usr/bin/lydsys', containerfile)
+        self.assertNotIn('COPY ark /usr/bin/ark', containerfile)
+        self.assertIn('pacman -Q ark libarchive', containerfile)
+        self.assertIn('test -x /usr/bin/ark', containerfile)
+        self.assertIn('test -x /usr/bin/ark', installer)
+        self.assertIn('test -x /usr/bin/lydsys', installer)
+
+    def test_feature_manager_examples_use_lydsys(self):
+        feature_manager = (ROOT/'ark').read_text()
+        self.assertIn('Usage:', feature_manager)
+        self.assertIn('lydsys feature list', feature_manager)
+        self.assertIn('lydsys development enable', feature_manager)
+        self.assertNotIn('ark development enable', feature_manager)
 
 
 class BlsSyncTests(unittest.TestCase):
