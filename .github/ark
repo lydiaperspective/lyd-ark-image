@@ -8,6 +8,8 @@ usage() {
     cat <<'EOF'
 Lyd Ark System Manager
 
+Compatibility alias: lydsys (same command).
+
 Usage:
   ark feature list
   ark feature status [FEATURE]
