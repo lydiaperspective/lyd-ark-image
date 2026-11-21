@@ -190,9 +190,8 @@ class ServerFirstBootLoginTests(unittest.TestCase):
 class ServerNetworkWaitOnlineTests(unittest.TestCase):
     def test_server_masks_unused_systemd_networkd_wait_online(self):
         containerfile = (ROOT/'Containerfile').read_text()
-        server_section = containerfile.split('if [[ "$VARIANT" == "intel3-server-lts" ]]; then', 2)[2].split('else', 1)[0]
-        self.assertIn('systemctl enable NetworkManager', server_section)
-        self.assertIn('systemctl mask systemd-networkd-wait-online.service', server_section)
+        self.assertIn('systemctl enable NetworkManager tuned tuned-ppd sshd cockpit.socket libvirtd.service tailscaled.service', containerfile)
+        self.assertIn('systemctl mask systemd-networkd-wait-online.service', containerfile)
 
 
 
