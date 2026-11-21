@@ -6,15 +6,15 @@ APP_ID_SUNSHINE="dev.lizardbyte.sunshine"
 
 usage() {
     cat <<'EOF'
-Lydsys System Manager
+Lyd Ark System Manager
 
 Usage:
-  lydsys feature list
-  lydsys feature status [FEATURE]
-  lydsys feature enable FEATURE
-  lydsys feature disable FEATURE
-  lydsys feature unregister github-runner
-  lydsys steam|tailscale|podman|distrobox|github-runner|solaar|sunshine|printing|development|virtualization ACTION [ARGS]
+  ark feature list
+  ark feature status [FEATURE]
+  ark feature enable FEATURE
+  ark feature disable FEATURE
+  ark feature unregister github-runner
+  ark steam|tailscale|podman|distrobox|github-runner|solaar|sunshine|printing|development|virtualization ACTION [ARGS]
 
 Manageable features:
   steam          Install or remove Steam as a system Flatpak.
@@ -31,18 +31,18 @@ Included base capabilities:
   distrobox      Already included in Ark desktop images; no daemon to enable.
 
 Examples:
-  lydsys steam enable
-  lydsys tailscale enable
-  lydsys podman enable
-  lydsys github-runner enable
-  lydsys solaar enable
-  lydsys sunshine enable
-  lydsys printing enable
-  lydsys development enable
-  lydsys development shell
-  lydsys virtualization enable
-  lydsys virtualization list
-  lydsys virtualization start my-vm
+  ark steam enable
+  ark tailscale enable
+  ark podman enable
+  ark github-runner enable
+  ark solaar enable
+  ark sunshine enable
+  ark printing enable
+  ark development enable
+  ark development shell
+  ark virtualization enable
+  ark virtualization list
+  ark virtualization start my-vm
 EOF
 }
 
@@ -275,7 +275,7 @@ solaar_action() {
             if systemctl --user is-active --quiet ark-solaar.service; then
                 echo "Solaar: active for this user"
             else
-                echo "Solaar: inactive (use 'lydsys solaar enable' to start it at login)"
+                echo "Solaar: inactive (use 'ark solaar enable' to start it at login)"
             fi
             ;;
     esac
@@ -339,7 +339,7 @@ printing_action() {
             done
             ;;
         *)
-            echo "Usage: lydsys printing {enable|disable|status}" >&2
+            echo "Usage: ark printing {enable|disable|status}" >&2
             return 2
             ;;
     esac
