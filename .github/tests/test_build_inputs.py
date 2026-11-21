@@ -185,6 +185,8 @@ class ServerFirstBootLoginTests(unittest.TestCase):
         containerfile = (ROOT/'Containerfile').read_text()
         self.assertIn("mkdir -p /usr/lib/systemd/system/plasmalogin.service.d", containerfile)
         self.assertIn("'Requires=ark-initial-account.service'", containerfile)
+        self.assertIn("printf '%s\\n' '[Unit]' 'Requires=ark-initial-account.service' 'After=ark-initial-account.service'", containerfile)
+        self.assertNotIn("printf '%s\\\\n' '[Unit]' 'Requires=ark-initial-account.service'", containerfile)
 
 
 class ServerNetworkWaitOnlineTests(unittest.TestCase):
