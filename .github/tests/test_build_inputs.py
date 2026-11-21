@@ -76,7 +76,7 @@ case "$1" in
       true
     fi
     ;;
-  -Rns) touch "'''+str(d/'removed-gnome-apps')+'''-$2" ;;
+  -Rns) touch "'''+str(d/'removed-gnome-apps')+'''-$3" ;;
 esac
 ''')
             mock.chmod(0o755)
