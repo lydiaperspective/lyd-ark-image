@@ -51,18 +51,34 @@ configure_rootless_podman_ids() {
     ensure_subid_mapping /etc/subuid --add-subuids
     ensure_subid_mapping /etc/subgid --add-subgids
 
-    # Rootless Podman stores this user's layers below /orundum. The first
-    # subordinate UID must be able to traverse every parent directory to the
-    # graphroot; otherwise crun cannot access overlay mount paths.
-    local graphroot subuid path
-    graphroot=$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)
+    # Podman's configured graphroot may be a path under the home directory
+    # that traverses a symlink into /orundum. Resolve it before checking the
+    # storage location or applying ACLs; otherwise the /orundum parents are
+    # skipped and crun cannot traverse overlay mount paths.
+    local configured_graphroot graphroot subuid path overlay_root
+    configured_graphroot=$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null) || {
+        echo "Could not determine the rootless Podman graphroot." >&2
+        return 1
+    }
+    require_command realpath
+    graphroot=$(realpath -e "$configured_graphroot") || {
+        echo "Could not resolve Podman graphroot: $configured_graphroot" >&2
+        return 1
+    }
     [[ "$graphroot" == /orundum/* ]] || return 0
+
     subuid=$(awk -F: -v user="$USER" '$1 == user { print $2; exit }' /etc/subuid)
     [[ "$subuid" =~ ^[0-9]+$ ]] || {
         echo "Could not determine the subordinate UID range for $USER." >&2
         return 1
     }
     require_command setfacl
+    require_command getfacl
+    require_command find
+
+    # Grant execute-only traversal along every existing parent, including
+    # directories reached through the graphroot symlink. Do not grant listing
+    # or file-read permissions.
     path="$graphroot"
     while [[ "$path" == /orundum/* || "$path" == /orundum ]]; do
         if [[ -d "$path" ]]; then
@@ -71,6 +87,20 @@ configure_rootless_podman_ids() {
         [[ "$path" == /orundum ]] && break
         path=$(dirname "$path")
     done
+
+    # Apply both access and default ACLs to existing overlay directories.
+    # The default ACL makes Podman's future layer directories inherit access.
+    overlay_root="$graphroot/overlay"
+    if [[ -d "$overlay_root" ]]; then
+        as_root find "$overlay_root" -type d \
+            -exec setfacl -m "u:$subuid:--x,d:u:$subuid:--x" {} +
+    fi
+    as_root setfacl -m "d:u:$subuid:--x" "$graphroot"
+
+    if ! as_root getfacl -cp "$graphroot" | grep -Fxq "default:user:$subuid:--x"; then
+        echo "Failed to configure inherited subordinate-UID traversal on $graphroot." >&2
+        return 1
+    fi
 }
 
 container_exists() {
