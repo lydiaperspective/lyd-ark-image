@@ -6,7 +6,7 @@ ARG KERNEL_IMAGE=ghcr.io/lydiaperspective/lyd-ark-image:kernel-desktop-standard
 # Shared userspace base (desktop or server profile; deliberately has no kernel).
 FROM docker.io/archlinux:latest AS base
 ARG VARIANT=ark
-ARG LYDSTORE_SHA=899c4f2b0a895e5807ee468633b921176faa94a8
+ARG LYDSTORE_SHA=1bc9ddab05d8dcd82e4f0342bd921edb3aedfb57
 
 LABEL ostree.bootable="true"
 LABEL containers.bootc="1"
