@@ -171,5 +171,30 @@ class BlsSyncTests(unittest.TestCase):
         self.assertIn('findmnt -n -o OPTIONS --target "$candidate"', script)
 
 
+
+class ServerFirstBootLoginTests(unittest.TestCase):
+    def test_server_uses_tty_account_setup_and_masks_graphical_login(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        server_unit = (ROOT/'ark-initial-account-server.service').read_text()
+        self.assertIn('install -m 0644 /usr/lib/systemd/system/ark-initial-account-server.service /usr/lib/systemd/system/ark-initial-account.service', containerfile)
+        self.assertIn('systemctl enable ark-initial-account.service getty@tty1.service', containerfile)
+        self.assertIn('systemctl mask display-manager.service plasmalogin.service', containerfile)
+        self.assertIn('ExecStartPost=/usr/bin/systemctl --no-block start getty@tty1.service', server_unit)
+
+    def test_desktop_keeps_plasma_first_boot_dependency(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        self.assertIn("mkdir -p /usr/lib/systemd/system/plasmalogin.service.d", containerfile)
+        self.assertIn("'Requires=ark-initial-account.service'", containerfile)
+
+
+class ServerNetworkWaitOnlineTests(unittest.TestCase):
+    def test_server_masks_unused_systemd_networkd_wait_online(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        server_section = containerfile.split('if [[ "$VARIANT" == "intel3-server-lts" ]]; then', 2)[2].split('else', 1)[0]
+        self.assertIn('systemctl enable NetworkManager', server_section)
+        self.assertIn('systemctl mask systemd-networkd-wait-online.service', server_section)
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
