@@ -3,8 +3,11 @@
 ## Why this is needed
 
 The desktop development environment uses rootless Podman with its graphroot
-under `/orundum`. Distrobox starts containers through `crun`, which must
-traverse the host-side overlay path, including
+under `/orundum`. The configured graphroot may appear under the home directory
+and reach `/orundum` through a symlink (for example,
+`~/.local/share/containers/storage`). The helper resolves the graphroot with
+`realpath -e` before applying permissions. Distrobox starts containers through
+`crun`, which must traverse the host-side overlay path, including
 `containers/storage/overlay/<layer>/merged`.
 
 The first subordinate UID in the user's `/etc/subuid` mapping needs
@@ -20,10 +23,10 @@ Distrobox:
 
 1. Ensure the user has subordinate UID and GID ranges.
 2. Read the rootless Podman graphroot.
-3. Grant the first subordinate UID execute-only access along the existing
-   `/orundum` path.
-4. Add an execute-only default ACL to the graphroot and, when present, its
-   `overlay` directory.
+3. Resolve the configured graphroot through symlinks, then grant the first
+   subordinate UID execute-only access along the real `/orundum` path.
+4. Apply execute-only access and default ACLs to existing overlay directories,
+   and add a default ACL to the graphroot for future storage directories.
 5. Verify the graphroot default ACL before proceeding.
 
 The server image does not expose the desktop development environment, so this
@@ -34,8 +37,9 @@ setup is desktop-only.
 Run as the normal desktop user:
 
     podman info --format '{{.Store.GraphRoot}}'
+    realpath -e "$(podman info --format '{{.Store.GraphRoot}}')"
     grep "^$(id -un):" /etc/subuid
-    getfacl -cp "$(podman info --format '{{.Store.GraphRoot}}')"
+    getfacl -cp "$(realpath -e "$(podman info --format '{{.Store.GraphRoot}}')")"
 
 The graphroot ACL should contain a line similar to
 `default:user:100000:--x`, where `100000` is the first subordinate UID
