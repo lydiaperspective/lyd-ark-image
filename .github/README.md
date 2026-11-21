@@ -35,7 +35,7 @@ The build order is **base → kernel → final driver image**. The final stage a
 
 ## Build workflow
 
-`.github/workflows/build-payload.yml` runs the stages in dependency order and publishes each stage to GHCR. Existing automatic push/scheduled builds use GitHub-hosted runners. Manual dispatch supports either:
+`.github/workflows/build-payload.yml` is the **Build All Lyd Ark Images** workflow. Run it from [Actions → Build All Lyd Ark Images](https://github.com/lydiaperspective/lyd-ark-image/actions/workflows/build-payload.yml) → **Run workflow**. Leave **Force build regardless of digest** enabled to rebuild both userspace bases, all three kernel layers, and all seven final image variants. The workflow publishes each stage to GHCR. Existing automatic push/scheduled builds use GitHub-hosted runners. Manual dispatch supports either:
 
 - `github-hosted` — GitHub-hosted runner (default)
 - `self-hosted` — a registered x86_64 Linux runner with rootless Podman, `wget`, and `curl`, labelled `ark-builder`
