@@ -100,6 +100,9 @@ else
         plasma-vault plasma-welcome polkit-kde-agent powerdevil print-manager spectacle systemsettings \
         xdg-desktop-portal-kde breeze-cursors plasma-workspace-wallpapers plymouth-kcm solaar
     /usr/bin/pacman -Q qemu-full libvirt virt-manager virt-viewer spice-gtk dnsmasq iptables-nft edk2-ovmf swtpm
+    test -x /usr/bin/ark
+    test -x /usr/bin/lydsys
+    /usr/bin/pacman -Q ark libarchive
     test -x /usr/libexec/ark/ark-development
     test -x /usr/libexec/ark/ark-virtualization
     ! /usr/bin/pacman -Qq | grep -qx sddm
