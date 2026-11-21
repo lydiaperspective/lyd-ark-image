@@ -168,6 +168,21 @@ esac
         self.assertNotIn('-Q plymouth',calls)
 
 
+
+class SteamPackageManagerTests(unittest.TestCase):
+    def test_steam_feature_uses_carrier_pacman_and_multilib(self):
+        feature_manager = (ROOT/'ark').read_text()
+        self.assertIn('as_root pacman -Syu --needed --noconfirm steam', feature_manager)
+        self.assertIn('distrobox enter archlinux -- sudo sh -c', feature_manager)
+        self.assertIn('^\\\\[multilib\\\\]', feature_manager)
+        self.assertIn('pacman -Rns --noconfirm steam', feature_manager)
+        self.assertNotIn('flatpak install --system --noninteractive --assumeyes --or-update flathub "$APP_ID_STEAM"', feature_manager)
+        self.assertIn('remove_legacy_steam_flatpak', feature_manager)
+
+    def test_steam_documentation_describes_pacman_container(self):
+        readme = (ROOT/'README.md').read_text()
+        self.assertIn('Steam on demand through Pacman in the Arch Distrobox', readme)
+
 class DesktopArchiveCommandTests(unittest.TestCase):
     def test_kde_ark_keeps_its_executable_and_zip_backend(self):
         containerfile = (ROOT/'Containerfile').read_text()
