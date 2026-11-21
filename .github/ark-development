@@ -92,7 +92,7 @@ configure_rootless_podman_ids() {
     # The default ACL makes Podman's future layer directories inherit access.
     overlay_root="$graphroot/overlay"
     if [[ -d "$overlay_root" ]]; then
-        as_root find "$overlay_root" -type d \\
+        as_root find "$overlay_root" -type d \
             -exec setfacl -m "u:$subuid:--x,d:u:$subuid:--x" {} +
     fi
     as_root setfacl -m "d:u:$subuid:--x" "$graphroot"
