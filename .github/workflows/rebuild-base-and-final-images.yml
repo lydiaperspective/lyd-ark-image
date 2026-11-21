@@ -1,0 +1,33 @@
+name: Rebuild Base and Final Images
+
+# Focused rebuild for changes to shared userspace or final-image configuration.
+# Reuses the proven payload pipeline, but skips the independent agent image.
+# The called pipeline rebuilds userspace bases, rebases the three kernel
+# families onto those bases, then composes, lints, and publishes all seven
+# final variants. It does not build the installer or ISO.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Where to run the image builds"
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted
+        default: github-hosted
+        required: true
+
+permissions:
+  actions: write
+  contents: read
+  packages: write
+
+jobs:
+  rebuild:
+    name: Rebuild userspace bases and final image variants
+    uses: ./.github/workflows/build-payload.yml
+    with:
+      force: true
+      runner: ${{ inputs.runner }}
+      build_agents: false
