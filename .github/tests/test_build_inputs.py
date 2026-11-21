@@ -181,7 +181,7 @@ class SteamPackageManagerTests(unittest.TestCase):
 
     def test_steam_documentation_describes_pacman_container(self):
         readme = (ROOT/'README.md').read_text()
-        self.assertIn('Steam on demand through Pacman in the Arch Distrobox', readme)
+        self.assertIn('Steam is installed on demand through the Pacman command in Carrier\'s Arch Distrobox', readme)
 
 class DesktopArchiveCommandTests(unittest.TestCase):
     def test_kde_ark_keeps_its_executable_and_zip_backend(self):
