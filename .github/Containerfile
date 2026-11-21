@@ -93,7 +93,7 @@ RUN set -e; \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap; \
     echo "arklinux" > /etc/hostname; \
     if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
-        pacman -Q libarchive || { echo "ERROR: libarchive support is missing." >&2; exit 1; }; \\
+        pacman -Q libarchive || { echo "ERROR: libarchive support is missing." >&2; exit 1; }; \
         if pacman -Q ark >/dev/null 2>&1; then echo "ERROR: KDE Ark conflicts with the Lyd Ark command." >&2; exit 1; fi; \
         for pkg in plasma-nm bluez bluez-utils bluedevil wpa_supplicant print-manager cups cups-filters sane sane-airscan skanpage ipp-usb avahi; do \
             pacman -Q "$pkg" >/dev/null || { echo "ERROR: printing/scanning package missing: $pkg" >&2; exit 1; }; \
