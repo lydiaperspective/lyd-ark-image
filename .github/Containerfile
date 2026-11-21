@@ -417,8 +417,35 @@ RUN set -e; \
         pacman -Scc --noconfirm; \
     fi
 
-# Layer 12c: Wicca Plymouth theme for desktop images. Convert SVG artwork to PNG for Plymouth's script Image() loader.
-RUN set -e; if [[ "$VARIANT" != "intel3-server-lts" ]]; then pacman -S --noconfirm librsvg; command -v rsvg-convert >/dev/null; git clone --quiet https://github.com/lydiaperspective/lyd-ark-themes.git /tmp/lyd-ark-themes; git -C /tmp/lyd-ark-themes checkout --quiet 5f0571e08d36a976a64d3b2f51019fdbf955ee3f; install -d /usr/share/plymouth/themes/lyd-ark-wicca; cp -a /tmp/lyd-ark-themes/themes/wicca/plymouth/. /usr/share/plymouth/themes/lyd-ark-wicca/; for asset in /usr/share/plymouth/themes/lyd-ark-wicca/*.svg; do rsvg-convert "$asset" > "/usr/share/plymouth/themes/lyd-ark-wicca/$(basename "$asset" .svg).png"; done; rm /usr/share/plymouth/themes/lyd-ark-wicca/*.svg; plymouth-set-default-theme lyd-ark-wicca; test -s /usr/share/plymouth/themes/lyd-ark-wicca/lyd-ark-wicca.script; test -s /etc/plymouth/plymouthd.conf; grep -Fq Theme=lyd-ark-wicca /etc/plymouth/plymouthd.conf; for asset in /usr/share/plymouth/themes/lyd-ark-wicca/*.png; do test -s "$asset"; done; rm -rf /tmp/lyd-ark-themes; fi
+# Layer 12c: Wicca boot and Plasma appearance for desktop images. The server remains headless.
+RUN set -e; \
+    if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
+        pacman -S --noconfirm librsvg; \
+        command -v rsvg-convert >/dev/null; \
+        command -v kwriteconfig6 >/dev/null; \
+        git clone --quiet https://github.com/lydiaperspective/lyd-ark-themes.git /tmp/lyd-ark-themes; \
+        git -C /tmp/lyd-ark-themes checkout --quiet d6db4c654497cfcc125ff0c9439c4afd03f0e2fe; \
+        install -d /usr/share/plymouth/themes/lyd-ark-mystical; \
+        cp -a /tmp/lyd-ark-themes/themes/mystical/plymouth/. /usr/share/plymouth/themes/lyd-ark-mystical/; \
+        for asset in /usr/share/plymouth/themes/lyd-ark-mystical/*.svg; do rsvg-convert "$asset" > "/usr/share/plymouth/themes/lyd-ark-mystical/$(basename "$asset" .svg).png"; done; \
+        rm /usr/share/plymouth/themes/lyd-ark-mystical/*.svg; \
+        plymouth-set-default-theme lyd-ark-mystical; \
+        test -s /usr/share/plymouth/themes/lyd-ark-mystical/lyd-ark-mystical.script; \
+        test -s /etc/plymouth/plymouthd.conf; \
+        grep -Fq Theme=lyd-ark-mystical /etc/plymouth/plymouthd.conf; \
+        for asset in /usr/share/plymouth/themes/lyd-ark-mystical/*.png; do test -s "$asset"; done; \
+        install -D -m 0644 "/tmp/lyd-ark-themes/themes/mystical/colors/Mystical.colors" "/usr/share/color-schemes/Mystical.colors"; \
+        install -d /usr/share/plasma/look-and-feel; \
+        cp -a /tmp/lyd-ark-themes/themes/mystical/look-and-feel/org.lydark.mystical.desktop /usr/share/plasma/look-and-feel/; \
+        install -d /etc/skel/.config /etc/xdg; \
+        kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key ColorScheme "Mystical"; \
+        kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key AccentColor "152,116,196"; \
+        kwriteconfig6 --file /etc/xdg/ksplashrc --group KSplash --key Theme "org.lydark.mystical.desktop"; \
+        kwriteconfig6 --file /etc/skel/.config/kdeglobals --group General --key ColorScheme "Mystical"; \
+        kwriteconfig6 --file /etc/skel/.config/kdeglobals --group General --key AccentColor "152,116,196"; \
+        kwriteconfig6 --file /etc/skel/.config/ksplashrc --group KSplash --key Theme "org.lydark.mystical.desktop"; \
+        rm -rf /tmp/lyd-ark-themes; \
+    fi
 # Layer 13: mkinitcpio + initramfs cleanup
 RUN set -e; \
     sed -i 's/^MODULES=.*/MODULES=(btrfs vfat ext4 xfs erofs overlay loop)/g' /etc/mkinitcpio.conf && \
