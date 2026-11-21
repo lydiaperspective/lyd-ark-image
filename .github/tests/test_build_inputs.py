@@ -160,5 +160,14 @@ esac
         self.assertNotEqual(result.returncode,0)
         self.assertNotIn('-Q plymouth',calls)
 
+
+class ServerNetworkWaitOnlineTests(unittest.TestCase):
+    def test_server_masks_unused_systemd_networkd_wait_online(self):
+        containerfile = (ROOT/'Containerfile').read_text()
+        server_block = containerfile.split('if [[ "$VARIANT" == "intel3-server-lts" ]]; then', 1)[1].split('else', 1)[0]
+        self.assertIn('systemctl enable NetworkManager', server_block)
+        self.assertIn('systemctl mask systemd-networkd-wait-online.service', server_block)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
