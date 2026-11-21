@@ -69,6 +69,11 @@ case "$1" in
   -Si) [[ "$2" == plymouth ]] ;;
   -S) [[ "'''+failure+'''" != official ]] ;;
   -U) [[ "'''+failure+'''" != local ]] ;;
+  -Qq)
+    for pkg in nuttyimgconverter nautilus-python nautilus gnome-system-monitor; do
+      [[ -e "'''+str(d/'removed-gnome-apps')+'''-$pkg" ]] || printf '%s\\n' "$pkg"
+    done
+    ;;
   -Q)
     if [[ "$#" -eq 2 && " nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility " == *" $2 "* ]]; then
       [[ ! -e "'''+str(d/'removed-gnome-apps')+'''-$2" ]]
@@ -76,7 +81,10 @@ case "$1" in
       true
     fi
     ;;
-  -Rns) touch "'''+str(d/'removed-gnome-apps')+'''-$3" ;;
+  -Rns)
+    shift 2
+    for pkg in "$@"; do touch "'''+str(d/'removed-gnome-apps')+'''-$pkg"; done
+    ;;
 esac
 ''')
             mock.chmod(0o755)
@@ -108,12 +116,13 @@ esac
         self.assertIn('-Rns --noconfirm nuttyimgconverter',calls)
         self.assertIn('-Rns --noconfirm nautilus-python',calls)
         self.assertIn('-Rns --noconfirm nautilus',calls)
-        removal_calls = calls.splitlines()
-        removal_calls = [line for line in removal_calls if line.startswith('-Rns --noconfirm ')]
-        self.assertLess(removal_calls.index('-Rns --noconfirm nuttyimgconverter'), removal_calls.index('-Rns --noconfirm nautilus-python'))
-        self.assertLess(removal_calls.index('-Rns --noconfirm nautilus-python'), removal_calls.index('-Rns --noconfirm nautilus'))
-        self.assertIn('-Rns --noconfirm gnome-system-monitor',calls)
-        self.assertIn('-Rns --noconfirm gnome-disk-utility',calls)
+        removal_calls = [line for line in calls.splitlines() if line.startswith('-Rns --noconfirm ')]
+        self.assertEqual(
+            removal_calls,
+            ['-Rns --noconfirm nuttyimgconverter nautilus-python nautilus gnome-system-monitor'],
+        )
+        # gnome-disk-utility is absent in this fixture and must not be passed
+        # to pacman as a removal target.
     def test_official_failure_stops_before_local_install(self):
         result,calls=self.run_installer('official')
         self.assertNotEqual(result.returncode,0)
