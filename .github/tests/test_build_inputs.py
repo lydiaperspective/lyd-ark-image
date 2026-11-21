@@ -69,7 +69,14 @@ case "$1" in
   -Si) [[ "$2" == plymouth ]] ;;
   -S) [[ "'''+failure+'''" != official ]] ;;
   -U) [[ "'''+failure+'''" != local ]] ;;
-  -Q) true ;;
+  -Q)
+    if [[ "$#" -eq 2 && " nautilus gnome-system-monitor gnome-disk-utility " == *" $2 "* ]]; then
+      [[ ! -e "'''+str("'''+str(d/'removed-gnome-apps')+'''")+'''" ]]
+    else
+      true
+    fi
+    ;;
+  -Rns) touch "'''+str("'''+str(d/'removed-gnome-apps')+'''")+'''" ;;
 esac
 ''')
             mock.chmod(0o755)
@@ -98,6 +105,9 @@ esac
         self.assertIn('bootc-1-1',install)
         self.assertNotIn('debug',install)
         self.assertNotIn('headers',install)
+        self.assertIn('-Rns --noconfirm nautilus',calls)
+        self.assertIn('-Rns --noconfirm gnome-system-monitor',calls)
+        self.assertIn('-Rns --noconfirm gnome-disk-utility',calls)
     def test_official_failure_stops_before_local_install(self):
         result,calls=self.run_installer('official')
         self.assertNotEqual(result.returncode,0)
