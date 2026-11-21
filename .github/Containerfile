@@ -151,7 +151,7 @@ RUN chmod 0755 /usr/libexec/ark/create-initial-account && \
     else \
         systemctl enable ark-initial-account.service && \
         mkdir -p /usr/lib/systemd/system/plasmalogin.service.d && \
-        printf '%s\\n' '[Unit]' 'Requires=ark-initial-account.service' 'After=ark-initial-account.service' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf; \
+        printf '%s\n' '[Unit]' 'Requires=ark-initial-account.service' 'After=ark-initial-account.service' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf; \
     fi
 
 # Layer 2: OSTree sysroot + systemd services
