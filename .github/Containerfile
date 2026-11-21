@@ -53,7 +53,7 @@ RUN set -e; \
             gcc meson ninja pkgconf \
             tuned tuned-ppd \
             webp-pixbuf-loader libheif libavif libraw ffmpegthumbnailer poppler-glib libgsf \
-            util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo rclone fuse3 python-pip python-setuptools ntfs-3g exfatprogs \
+            util-linux openssl efibootmgr dosfstools e2fsprogs xfsprogs ostree skopeo rclone fuse3 python-pip python-setuptools python-fastapi uvicorn ntfs-3g exfatprogs \
             btrfs-progs snapper snap-pac podman podman-compose distrobox composefs ibus iso-codes shadow sudo git curl jq icu libunwind krb5 lttng-ust nano zsh fish python rsync acl libnotify \
             qemu-full libvirt virt-manager virt-viewer spice-gtk dnsmasq iptables-nft edk2-ovmf swtpm \
             fuse2 squashfuse libappimage desktop-file-utils shared-mime-info \
