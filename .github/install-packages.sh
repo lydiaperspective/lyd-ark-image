@@ -21,6 +21,16 @@ for archive in "${archives[@]}"; do
             continue
             ;;
     esac
+    # The ark-aur release is shared by desktop and server images. Keep
+    # desktop-only GNOME utilities out of the server profile entirely.
+    if [[ "${VARIANT:-}" == "intel3-server-lts" ]]; then
+        case "$name" in
+            nuttyimgconverter|nautilus-python|nautilus|gnome-system-monitor|gnome-disk-utility|gnome-disk-utility-git)
+                echo "Skipping desktop-only package in server image: $name"
+                continue
+                ;;
+        esac
+    fi
     if /usr/bin/pacman -Si "$name" >/dev/null 2>&1; then
         official+=("$name")
     else
@@ -63,7 +73,7 @@ else
     # AUR packages are installed after the base userspace layer and can pull
     # GNOME utilities back in as dependencies. Remove them from the composed
     # desktop image, then fail the build if any remain.
-    unwanted_packages=(nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility)
+    unwanted_packages=(nuttyimgconverter nautilus-python nautilus gnome-system-monitor gnome-disk-utility gnome-disk-utility-git)
     installed_packages="$(/usr/bin/pacman -Qq)"
     packages_to_remove=()
     for pkg in "${unwanted_packages[@]}"; do
