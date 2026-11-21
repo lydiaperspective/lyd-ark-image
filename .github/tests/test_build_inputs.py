@@ -56,6 +56,8 @@ class InstallerTests(unittest.TestCase):
                 'etc/sudoers.d/10-wheel': '%wheel ALL=(ALL:ALL) ALL\n',
                 'etc/pam.d/system-login': 'session required pam_mkhomedir.so skel=/etc/skel umask=0077\n',
             }
+            if variant == 'intel3-server-lts':
+                fixtures.pop('usr/lib/packagekit-backend/libpk_backend_bootc.so')
             for relative, content in fixtures.items():
                 target = d/relative
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -88,7 +90,17 @@ case "$1" in
   -Q)
     if [[ "$#" -eq 2 ]]; then
       pkg="$2"
-      [[ -e "'''+str(d/'installed-gnome-apps')+'''-$pkg" && ! -e "'''+str(d/'removed-gnome-apps')+'''-$pkg" ]]
+      case "$pkg" in
+        nuttyimgconverter|nautilus-python|nautilus|gnome-system-monitor|gnome-disk-utility|gnome-disk-utility-git)
+          [[ -e "'''+str(d/'installed-gnome-apps')+'''-$pkg" && ! -e "'''+str(d/'removed-gnome-apps')+'''-$pkg" ]]
+          ;;
+        plasma-login-manager)
+          [[ "${VARIANT:-}" != intel3-server-lts ]]
+          ;;
+        *)
+          true
+          ;;
+      esac
     fi
     ;;
   -Rns)
