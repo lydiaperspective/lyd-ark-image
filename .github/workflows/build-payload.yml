@@ -1,4 +1,4 @@
-name: Build Lyd Ark Image Payload
+name: Build All Lyd Ark Images
 
 on:
   push:
@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Force build regardless of digest'
+        description: 'Rebuild all image stages and all seven final variants, even when inputs are unchanged'
         default: true
         type: boolean
       runner:
