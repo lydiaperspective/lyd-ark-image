@@ -231,7 +231,9 @@ class StorageManagerImageTests(unittest.TestCase):
         self.assertIn('lyd-ark-storage-manager.git', containerfile)
         self.assertIn('pip install --break-system-packages --no-build-isolation --no-deps', containerfile)
         self.assertIn('lydstore --help', containerfile)
-        self.assertEqual(containerfile.count('rclone fuse3 python-pip python-setuptools ntfs-3g exfatprogs'), 2)
+        self.assertEqual(containerfile.count('rclone fuse3 python-pip python-setuptools python-fastapi uvicorn ntfs-3g exfatprogs'), 2)
+        self.assertIn('systemctl enable lydstore-web.service', containerfile)
+        self.assertIn('tailscaled.service ark-waterfox-install.service', containerfile)
 
     def test_ark_storage_tmpfiles_uses_persistent_root_and_non_destructive_symlink(self):
         tmpfiles = (ROOT/'ark-storage.tmpfiles').read_text()
