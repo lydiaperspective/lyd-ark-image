@@ -7,7 +7,6 @@ on:
       - '.github/Containerfile'
       - '.github/create-initial-account'
       - '.github/ark-initial-account.service'
-      - '.github/workflows/build-payload.yml'
       - '.github/workflows/build-single-final-payload.yml'
       - '.github/workflows/rebuild-base-images.yml'
       - '.github/tests/test_build_inputs.py'
