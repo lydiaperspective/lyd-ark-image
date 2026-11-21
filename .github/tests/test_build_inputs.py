@@ -163,8 +163,8 @@ esac
 
 class FirstBootLoginTests(unittest.TestCase):
     def test_server_uses_console_account_unit_and_getty(self):
-        containerfile = (ROOT/'.github/Containerfile').read_text()
-        server_unit = (ROOT/'.github/ark-initial-account-server.service').read_text()
+        containerfile = (ROOT/'Containerfile').read_text()
+        server_unit = (ROOT/'ark-initial-account-server.service').read_text()
         self.assertIn('install -m 0644 /usr/lib/systemd/system/ark-initial-account-server.service /usr/lib/systemd/system/ark-initial-account.service', containerfile)
         self.assertIn('systemctl enable ark-initial-account.service getty@tty1.service', containerfile)
         self.assertIn('systemctl mask display-manager.service plasmalogin.service', containerfile)
