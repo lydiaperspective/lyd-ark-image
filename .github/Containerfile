@@ -142,10 +142,17 @@ RUN if [[ "$VARIANT" != "intel3-server-lts" ]]; then \
 # store, or write account credentials. The installed system prompts on tty1.
 COPY create-initial-account /usr/libexec/ark/create-initial-account
 COPY ark-initial-account.service /usr/lib/systemd/system/ark-initial-account.service
+COPY ark-initial-account-server.service /usr/lib/systemd/system/ark-initial-account-server.service
 RUN chmod 0755 /usr/libexec/ark/create-initial-account && \
-    systemctl enable ark-initial-account.service && \
-    mkdir -p /usr/lib/systemd/system/plasmalogin.service.d && \
-    printf '%s\n' '[Unit]' 'Requires=ark-initial-account.service' 'After=ark-initial-account.service' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf
+    if [[ "$VARIANT" == "intel3-server-lts" ]]; then \
+        install -m 0644 /usr/lib/systemd/system/ark-initial-account-server.service /usr/lib/systemd/system/ark-initial-account.service && \
+        systemctl enable ark-initial-account.service getty@tty1.service && \
+        systemctl mask display-manager.service plasmalogin.service; \
+    else \
+        systemctl enable ark-initial-account.service && \
+        mkdir -p /usr/lib/systemd/system/plasmalogin.service.d && \
+        printf '%s\\n' '[Unit]' 'Requires=ark-initial-account.service' 'After=ark-initial-account.service' > /usr/lib/systemd/system/plasmalogin.service.d/10-ark-first-boot.conf; \
+    fi
 
 # Layer 2: OSTree sysroot + systemd services
 RUN set -e; \
