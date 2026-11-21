@@ -73,7 +73,7 @@ else
     done
     # Remove the complete installed set in one transaction. Separate pacman
     # removals can orphan/remove later targets, making a subsequent removal fail.
-    if (("${#packages_to_remove[@]}")); then
+    if ((${#packages_to_remove[@]})); then
         /usr/bin/pacman -Rns --noconfirm "${packages_to_remove[@]}"
     fi
     for pkg in "${unwanted_packages[@]}"; do
