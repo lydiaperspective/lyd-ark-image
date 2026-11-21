@@ -160,5 +160,16 @@ esac
         self.assertNotEqual(result.returncode,0)
         self.assertNotIn('-Q plymouth',calls)
 
+
+class BlsSyncTests(unittest.TestCase):
+    def test_read_only_boot_mount_is_not_selected_for_mirroring(self):
+        script = (ROOT/'bls-sync.sh').read_text()
+        guard = 'case ",$BOOT_OPTIONS," in'
+        self.assertIn(guard, script)
+        self.assertIn('echo "bls-sync: /boot is read-only; skipping optional /boot mirror"', script)
+        self.assertLess(script.index(guard), script.index('BOOT_DIR="$candidate"'))
+        self.assertIn('findmnt -n -o OPTIONS --target "$candidate"', script)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
